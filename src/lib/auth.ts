@@ -15,7 +15,7 @@ export async function getServerUser(): Promise<AuthUser | null> {
 
   const admin = createAdminClient();
   const { data: profile } = await admin
-    .from("profiles")
+    .from("users")
     .select("id, username, role")
     .eq("id", user.id)
     .single();

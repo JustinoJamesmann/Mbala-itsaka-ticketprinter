@@ -3,9 +3,7 @@
 import { Page, User } from "../types";
 
 const navItems: { id: Page; label: string }[] = [
-  { id: "dashboard", label: "Dashboard" },
-  { id: "inventory", label: "Inventory" },
-  { id: "sales", label: "Sales" },
+  { id: "newOrder", label: "New Order" },
   { id: "report", label: "Report" },
 ];
 

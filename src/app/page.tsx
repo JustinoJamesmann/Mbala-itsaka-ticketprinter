@@ -1,18 +1,13 @@
 "use client";
 
-import { Product, Order, Page, User } from "./types";
+import { Order, Page, User } from "./types";
 import Sidebar from "./components/Sidebar";
-import Dashboard from "./components/Dashboard";
-import Inventory from "./components/Inventory";
-import Sales from "./components/Sales";
 import Report from "./components/Report";
-import Categories from "./components/Categories";
-import Stock from "./components/Stock";
+import CreateOrderForm from "./components/CreateOrderForm";
 import { useState, useEffect } from "react";
 
 export default function Home() {
-  const [page, setPage] = useState<Page>("dashboard");
-  const [products, setProducts] = useState<Product[]>([]);
+  const [page, setPage] = useState<Page>("newOrder");
   const [orders, setOrders] = useState<Order[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -28,7 +23,6 @@ export default function Home() {
         const response = await fetch("/api/bootstrap");
         const data = await response.json();
         setCurrentUser(data.user);
-        setProducts(data.products || []);
         setOrders(data.orders || []);
       } finally {
         setLoaded(true);
@@ -39,13 +33,8 @@ export default function Home() {
 
   async function refreshData() {
     setDataLoading(true);
-    const [productsResponse, ordersResponse] = await Promise.all([
-      fetch("/api/products"),
-      fetch("/api/orders"),
-    ]);
-    const productsData = await productsResponse.json();
+    const ordersResponse = await fetch("/api/orders");
     const ordersData = await ordersResponse.json();
-    setProducts(productsData.products || []);
     setOrders(ordersData.orders || []);
     setDataLoading(false);
   }
@@ -72,29 +61,7 @@ export default function Home() {
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
     setCurrentUser(null);
-    setProducts([]);
     setOrders([]);
-  }
-
-  async function handleSetProducts(nextProducts: Product[]) {
-    const previousProducts = products;
-    setProducts(nextProducts);
-
-    const deleted = previousProducts.find(product => !nextProducts.some(next => next.id === product.id));
-    const created = nextProducts.find(product => !previousProducts.some(previous => previous.id === product.id));
-    const updated = nextProducts.find(product => {
-      const previous = previousProducts.find(p => p.id === product.id);
-      return previous && JSON.stringify(previous) !== JSON.stringify(product);
-    });
-
-    if (deleted) {
-      await fetch("/api/products", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: deleted.id }) });
-    } else if (created) {
-      await fetch("/api/products", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(created) });
-    } else if (updated) {
-      await fetch("/api/products", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(updated) });
-    }
-    await refreshData();
   }
 
   async function handleSetOrders(nextOrders: Order[]) {
@@ -111,12 +78,90 @@ export default function Home() {
     if (deleted) {
       await fetch("/api/orders", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: deleted.id }) });
     } else if (created) {
-      const { id, ...orderPayload } = created;
-      await fetch("/api/orders", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(orderPayload) });
+      await fetch("/api/orders", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(created) });
     } else if (updated) {
-      await fetch("/api/orders", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: updated.id, status: updated.status }) });
+      await fetch("/api/orders", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(updated) });
     }
     await refreshData();
+  }
+
+  function printReceipt(order: Order) {
+    try {
+      const printWindow = window.open('', '', 'width=400,height=600');
+      if (!printWindow) {
+        alert('Please allow popups to print receipts');
+        return;
+      }
+
+      const itemsHtml = order.items.map(item => `
+        <tr>
+          <td style="padding: 4px 0;">${item.productName}</td>
+          <td style="padding: 4px 0; text-align: right;">${item.quantity}x</td>
+          <td style="padding: 4px 0; text-align: right;">Ar ${item.total.toFixed(2)}</td>
+        </tr>
+      `).join('');
+
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Receipt #${order.id}</title>
+          <style>
+            body { font-family: monospace; padding: 20px; margin: 0; color: #000; }
+            h1 { text-align: center; margin: 0 0 20px 0; color: #000; }
+            .logo { text-align: center; margin-bottom: 20px; }
+            .logo img { max-width: 150px; height: auto; }
+            .info { margin-bottom: 20px; color: #000; }
+            table { width: 100%; border-collapse: collapse; color: #000; }
+            th { border-bottom: 1px dashed #000; padding: 8px 0; text-align: left; color: #000; }
+            td { padding: 4px 0; color: #000; }
+            .total { border-top: 1px dashed #000; margin-top: 20px; padding-top: 10px; }
+            .row { display: flex; justify-content: space-between; }
+            .footer { text-align: center; margin-top: 30px; font-size: 12px; color: #000; }
+          </style>
+        </head>
+        <body>
+          <div class="logo">
+            <img src="/logo.png" alt="Logo" />
+          </div>
+          <h1>Mbala&amp;Itsaka</h1>
+          <div class="info">
+            <div><strong>Receipt #${order.id}</strong></div>
+            <div>Date: ${order.date}</div>
+            <div>Customer: ${order.customer}</div>
+            ${order.phone ? `<div>Phone: ${order.phone}</div>` : ''}
+            ${order.address ? `<div>Address: ${order.address}</div>` : ''}
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th style="text-align: right;">Qty</th>
+                <th style="text-align: right;">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${itemsHtml}
+            </tbody>
+          </table>
+          <div class="total">
+            <div class="row"><span>Subtotal:</span><span>Ar ${order.subtotal.toFixed(2)}</span></div>
+            <div class="row"><span>Delivery:</span><span>Ar ${(order.deliveryCost || 0).toFixed(2)}</span></div>
+            <div class="row"><span>Remise:</span><span>- Ar ${(order.remise || 0).toFixed(2)}</span></div>
+            <div class="row" style="font-size: 18px; font-weight: bold; margin-top: 10px;"><span>TOTAL:</span><span>Ar ${order.total.toFixed(2)}</span></div>
+          </div>
+          <div class="footer">
+            misaotra nanjifa
+          </div>
+        </body>
+        </html>
+      `);
+      printWindow.document.close();
+      printWindow.print();
+    } catch (error) {
+      console.error('Print error:', error);
+      alert('Error printing receipt. Please try again.');
+    }
   }
 
   if (!loaded) {
@@ -190,12 +235,27 @@ export default function Home() {
             Loading data...
           </div>
         )}
-        {page === "dashboard" && <Dashboard products={products} orders={orders} onNavigate={setPage} />}
-        {page === "inventory" && <Inventory products={products} setProducts={handleSetProducts} currentUser={currentUser} onNavigate={setPage} />}
-        {page === "sales" && <Sales orders={orders} setOrders={handleSetOrders} products={products} setProducts={handleSetProducts} currentUser={currentUser} />}
-        {page === "report" && <Report orders={orders} products={products} currentUser={currentUser} />}
-        {page === "categories" && <Categories onNavigate={setPage} />}
-        {page === "stock" && <Stock products={products} setProducts={handleSetProducts} onNavigate={setPage} />}
+        {page === "newOrder" && (
+          <div className="animate-fade-in-up space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-3xl font-bold gradient-text">New Order</h1>
+                <p className="text-[#8fa3ad]/95 text-sm mt-1">Create a ticket sale</p>
+              </div>
+            </div>
+            <CreateOrderForm
+              onSave={(order) => {
+                const newOrder = { ...order, id: `ORD-${String(orders.length + 1).padStart(3, "0")}` };
+                setOrders([...orders, newOrder]);
+                setPage("report");
+                // Trigger immediate print
+                setTimeout(() => printReceipt(newOrder), 100);
+              }}
+              onClose={() => setPage("report")}
+            />
+          </div>
+        )}
+        {page === "report" && <Report orders={orders} currentUser={currentUser} />}
       </main>
     </div>
   );

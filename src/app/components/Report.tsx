@@ -1,9 +1,9 @@
 "use client";
 
-import { Order, Product, User } from "../types";
+import { Order, User } from "../types";
 import { useState } from "react";
 
-export default function Report({ orders, products, currentUser }: { orders: Order[]; products: Product[]; currentUser: User }) {
+export default function Report({ orders, currentUser }: { orders: Order[]; currentUser: User }) {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
 
   function handlePrint() {
@@ -17,24 +17,24 @@ export default function Report({ orders, products, currentUser }: { orders: Orde
       @media print {
         aside, .no-print { display: none !important; }
         main { margin-left: 0 !important; padding: 20px !important; }
-        .glass { background: #0d1518 !important; border: none !important; color: #e6f1f5 !important; box-shadow: none !important; }
+        .glass { background: #fff !important; border: none !important; color: #000 !important; box-shadow: none !important; }
         .neon-glow-purple, .neon-glow-green, .neon-glow-cyan, .neon-glow-pink { box-shadow: none !important; }
-        .gradient-text { background: none !important; -webkit-text-fill-color: #e6f1f5 !important; }
-        body { background: #0d1518 !important; }
-        .text-[#e6f1f5]\\/40, .text-[#e6f1f5]\\/30, .text-[#e6f1f5]\\/20, .text-[#e6f1f5]\\/50, .text-[#e6f1f5]\\/60, .text-[#e6f1f5]\\/70, .text-[#e6f1f5]\\/80 { color: #e6f1f5 !important; }
-        .text-neon-purple, .text-neon-green, .text-neon-cyan, .text-neon-pink { color: #e6f1f5 !important; }
-        .bg-\\[\\#7F2020\\]\\/5 { background: #162126 !important; }
-        .border-\\[\\#C9CAAC\\]\\/40, .border-\\[\\#C9CAAC\\]\\/60 { border-color: #1f2a30 !important; }
+        .gradient-text { background: none !important; -webkit-text-fill-color: #000 !important; color: #000 !important; }
+        body { background: #fff !important; }
+        .text-[#e6f1f5]\\/40, .text-[#e6f1f5]\\/30, .text-[#e6f1f5]\\/20, .text-[#e6f1f5]\\/50, .text-[#e6f1f5]\\/60, .text-[#e6f1f5]\\/70, .text-[#e6f1f5]\\/80 { color: #000 !important; }
+        .text-neon-purple, .text-neon-green, .text-neon-cyan, .text-neon-pink { color: #000 !important; }
+        .bg-\\[\\#7F2020\\]\\/5 { background: #fff !important; }
+        .border-\\[\\#C9CAAC\\]\\/40, .border-\\[\\#C9CAAC\\]\\/60 { border-color: #000 !important; }
         button { display: none !important; }
         .print-header { display: block !important; text-align: center; margin-bottom: 30px; }
-        .print-header img { max-width: 150px; height: auto; filter: brightness(1); }
-        .print-header h1 { font-size: 24px; font-weight: bold; margin: 10px 0; color: #e6f1f5 !important; }
+        .print-header img { max-width: 150px; height: auto; }
+        .print-header h1 { font-size: 24px; font-weight: bold; margin: 10px 0; color: #000 !important; }
         .report-summary, .stock-note, .screen-only { display: none !important; }
         .report-table { width: 100% !important; border-collapse: collapse !important; font-size: 11px !important; }
-        .report-table th, .report-table td { border: 1px solid #1f2a30 !important; padding: 7px !important; color: #e6f1f5 !important; }
-        .report-table th { background: #162126 !important; font-weight: bold !important; text-align: left !important; }
+        .report-table th, .report-table td { border: 1px solid #000 !important; padding: 7px !important; color: #000 !important; }
+        .report-table th { background: #f0f0f0 !important; font-weight: bold !important; text-align: left !important; }
         .report-table td.number, .report-table th.number { text-align: right !important; }
-        .report-table tfoot td { font-weight: bold !important; background: #1f2a30 !important; }
+        .report-table tfoot td { font-weight: bold !important; background: #f0f0f0 !important; }
       }
       @media screen {
         .print-header { display: none !important; }
@@ -49,20 +49,17 @@ export default function Report({ orders, products, currentUser }: { orders: Orde
   const filteredOrders = orders.filter(order => order.date === selectedDate && order.status !== "cancelled");
   const reportRows = Object.values(filteredOrders.reduce((acc, order) => {
     order.items.forEach(item => {
-      const product = products.find(p => p.id === item.productId);
-      const existing = acc[item.productId] || {
+      const existing = acc[item.productName] || {
         productName: item.productName,
         quantity: 0,
         revenue: 0,
-        stockLeft: product?.quantity || 0,
       };
       existing.quantity += item.quantity;
       existing.revenue += item.total;
-      existing.stockLeft = product?.quantity || 0;
-      acc[item.productId] = existing;
+      acc[item.productName] = existing;
     });
     return acc;
-  }, {} as Record<string, { productName: string; quantity: number; revenue: number; stockLeft: number }>));
+  }, {} as Record<string, { productName: string; quantity: number; revenue: number }>));
   const totalQuantity = reportRows.reduce((sum, row) => sum + row.quantity, 0);
   const totalRevenue = reportRows.reduce((sum, row) => sum + row.revenue, 0);
 
@@ -106,7 +103,6 @@ export default function Report({ orders, products, currentUser }: { orders: Orde
                   <th className="text-left py-3 px-4">Product Name</th>
                   <th className="text-right py-3 px-4 number">Quantity</th>
                   <th className="text-right py-3 px-4 number">Revenue</th>
-                  <th className="text-right py-3 px-4 number">Stock Left</th>
                 </tr>
               </thead>
               <tbody>
@@ -115,7 +111,6 @@ export default function Report({ orders, products, currentUser }: { orders: Orde
                     <td className="py-3 px-4 text-[#e6f1f5]/85">{row.productName}</td>
                     <td className="py-3 px-4 text-right text-[#e6f1f5]/85 number">{row.quantity}</td>
                     <td className="py-3 px-4 text-right text-neon-green font-medium number">Ar {row.revenue.toFixed(2)}</td>
-                    <td className="py-3 px-4 text-right text-[#e6f1f5]/85 number">{row.stockLeft}</td>
                   </tr>
                 ))}
               </tbody>
@@ -124,19 +119,11 @@ export default function Report({ orders, products, currentUser }: { orders: Orde
                   <td className="py-3 px-4 text-[#e6f1f5]/90">Total</td>
                   <td className="py-3 px-4 text-right text-[#e6f1f5]/90 number">{totalQuantity}</td>
                   <td className="py-3 px-4 text-right text-neon-green number">Ar {totalRevenue.toFixed(2)}</td>
-                  <td className="py-3 px-4 text-right text-[#e6f1f5]/90 number">-</td>
                 </tr>
               </tfoot>
             </table>
           </div>
         )}
-      </div>
-
-      <div className="glass p-6 stock-note">
-        <h2 className="text-lg font-semibold text-[#e6f1f5]/90 mb-4">Stock Arrivals</h2>
-        <div className="text-[#8fa3ad] text-sm">
-          <p>Stock Left uses the current inventory quantity, including old stock and any newly added stock.</p>
-        </div>
       </div>
     </div>
   );
