@@ -20,7 +20,8 @@ export default function Report({ orders, currentUser }: { orders: Order[]; curre
         .glass { background: #fff !important; border: none !important; color: #000 !important; box-shadow: none !important; }
         .neon-glow-purple, .neon-glow-green, .neon-glow-cyan, .neon-glow-pink { box-shadow: none !important; }
         .gradient-text { background: none !important; -webkit-text-fill-color: #000 !important; color: #000 !important; }
-        body { background: #fff !important; }
+        body { background: #fff !important; color: #000 !important; }
+        * { color: #000 !important; }
         .text-[#e6f1f5]\\/40, .text-[#e6f1f5]\\/30, .text-[#e6f1f5]\\/20, .text-[#e6f1f5]\\/50, .text-[#e6f1f5]\\/60, .text-[#e6f1f5]\\/70, .text-[#e6f1f5]\\/80 { color: #000 !important; }
         .text-neon-purple, .text-neon-green, .text-neon-cyan, .text-neon-pink { color: #000 !important; }
         .bg-\\[\\#7F2020\\]\\/5 { background: #fff !important; }
