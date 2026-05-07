@@ -2,6 +2,7 @@
 
 import { Order } from "../types";
 import { useState } from "react";
+import Calendar from "./Calendar";
 
 export default function CreateOrderForm({ onSave, onClose }: { onSave: (o: Omit<Order, "id">) => void; onClose: () => void }) {
   const [customer, setCustomer] = useState("");
@@ -13,6 +14,7 @@ export default function CreateOrderForm({ onSave, onClose }: { onSave: (o: Omit<
   const [price, setPrice] = useState("");
   const [deliveryCost, setDeliveryCost] = useState(0);
   const [remise, setRemise] = useState(0);
+  const [orderDate, setOrderDate] = useState(new Date().toISOString().split("T")[0]);
 
   function addItem() {
     const parsedQty = parseInt(qty) || 0;
@@ -44,7 +46,7 @@ export default function CreateOrderForm({ onSave, onClose }: { onSave: (o: Omit<
       remise,
       total,
       status: "pending",
-      date: new Date().toISOString().split("T")[0],
+      date: orderDate,
     });
   }
 
@@ -68,6 +70,11 @@ export default function CreateOrderForm({ onSave, onClose }: { onSave: (o: Omit<
           <div>
             <label className="text-xs text-[#8fa3ad]/95 mb-1 block">Address (Optional)</label>
             <input type="text" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Delivery address" />
+          </div>
+
+          <div>
+            <label className="text-xs text-[#8fa3ad]/95 mb-1 block">live date</label>
+            <Calendar value={orderDate} onChange={setOrderDate} />
           </div>
 
           {/* Add items manually */}

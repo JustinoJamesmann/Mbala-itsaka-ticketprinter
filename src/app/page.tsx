@@ -127,7 +127,7 @@ export default function Home() {
           <h1>Mbala&amp;Itsaka</h1>
           <div class="info">
             <div><strong>Receipt #${order.id}</strong></div>
-            <div>Date: ${order.date}</div>
+            <div>live date: ${order.date}</div>
             <div>Customer: ${order.customer}</div>
             ${order.phone ? `<div>Phone: ${order.phone}</div>` : ''}
             ${order.address ? `<div>Address: ${order.address}</div>` : ''}

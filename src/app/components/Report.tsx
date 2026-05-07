@@ -2,6 +2,7 @@
 
 import { Order, User } from "../types";
 import { useState } from "react";
+import Calendar from "./Calendar";
 
 export default function Report({ orders, currentUser }: { orders: Order[]; currentUser: User }) {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
@@ -77,12 +78,7 @@ export default function Report({ orders, currentUser }: { orders: Order[]; curre
         </div>
         <div className="flex items-center gap-3">
           <label className="text-sm text-[#e6f1f5]/80">Date:</label>
-          <input
-            type="date"
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-            className="px-4 py-2 rounded-xl bg-[#d14b4b]/8 border border-[#1f2a30] text-[#e6f1f5] text-sm"
-          />
+          <Calendar value={selectedDate} onChange={setSelectedDate} />
           <button
             onClick={handlePrint}
             className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-neon-pink to-neon-purple text-[#e6f1f5] font-medium text-sm hover:opacity-90 transition-opacity cursor-pointer neon-glow-pink"
