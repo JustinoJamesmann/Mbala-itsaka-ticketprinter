@@ -5,9 +5,7 @@ import { requireAdmin } from "../../../../lib/auth";
 export async function GET() {
   const user = await requireAdmin();
   const supabase = createAdminClient();
-  const [products, categories, orders, orderItems, activityLogs] = await Promise.all([
-    supabase.from("products").select("*"),
-    supabase.from("categories").select("*"),
+  const [orders, orderItems, activityLogs] = await Promise.all([
     supabase.from("orders").select("*"),
     supabase.from("order_items").select("*"),
     supabase.from("activity_logs").select("*").order("created_at", { ascending: false }).limit(1000),
@@ -15,8 +13,6 @@ export async function GET() {
 
   const payload = {
     exportedAt: new Date().toISOString(),
-    products: products.data || [],
-    categories: categories.data || [],
     orders: orders.data || [],
     orderItems: orderItems.data || [],
     activityLogs: activityLogs.data || [],
