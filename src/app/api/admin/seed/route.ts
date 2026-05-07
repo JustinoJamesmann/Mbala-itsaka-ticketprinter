@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "../../../../lib/supabase/admin";
-import { defaultCategories, defaultProducts } from "../../../store";
 
 const defaultAccounts = [
   { email: "Ramanatenasoamariemichelle@gmail.com", username: "Michelle", password: "marisa20.", role: "admin" as const },
@@ -28,26 +27,10 @@ export async function POST() {
     }
   }
 
-  for (const name of defaultCategories) {
-    await supabase.from("categories").upsert({ name }, { onConflict: "name" });
-  }
-
-  for (const product of defaultProducts) {
-    await supabase.from("products").upsert({
-      name: product.name,
-      sku: product.sku,
-      category: product.category,
-      buying_price: product.buyingPrice || 0,
-      selling_price: product.price,
-      quantity: product.quantity,
-      image: product.image || null,
-    }, { onConflict: "sku" });
-  }
-
   await supabase.from("activity_logs").insert({
     action: "seed_database",
     entity_type: "system",
-    details: { users: defaultAccounts.map(a => a.username), products: defaultProducts.length, categories: defaultCategories.length },
+    details: { users: defaultAccounts.map(a => a.username) },
   });
 
   return NextResponse.json({ ok: true });
