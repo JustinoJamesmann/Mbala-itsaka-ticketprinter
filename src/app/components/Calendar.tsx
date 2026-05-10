@@ -43,18 +43,18 @@ export default function Calendar({ value, onChange }: { value: string; onChange:
     <div className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="px-4 py-2 rounded-xl bg-[#d14b4b]/8 border border-[#1f2a30] text-[#e6f1f5] text-sm hover:bg-[#d14b4b]/12 transition-colors cursor-pointer flex items-center gap-2"
+        className="px-4 py-2 rounded-xl bg-[#d14b4b]/8 border border-[#1f2a30] text-[#e6f1f5] text-sm hover:bg-[#d14b4b]/12 transition-colors cursor-pointer flex items-center gap-2 w-full sm:w-auto justify-center sm:justify-start"
       >
         📅 {new Date(value).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
       </button>
 
       {isOpen && (
-        <div className="absolute top-full left-0 mt-2 z-50 bg-[#162126] border border-[#1f2a30] rounded-xl p-4 shadow-xl min-w-[280px]">
+        <div className="absolute top-full left-0 mt-2 z-50 bg-[#162126] border border-[#1f2a30] rounded-xl p-4 shadow-xl min-w-[280px] w-full sm:w-auto">
           <div className="flex items-center justify-between mb-4">
             <button onClick={prevMonth} className="px-3 py-1 rounded-lg bg-[#d14b4b]/8 border border-[#1f2a30] text-[#e6f1f5] text-sm hover:bg-[#d14b4b]/12 transition-colors cursor-pointer">
               ←
             </button>
-            <div className="text-lg font-semibold text-[#e6f1f5]/90">
+            <div className="text-base sm:text-lg font-semibold text-[#e6f1f5]/90">
               {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
             </div>
             <button onClick={nextMonth} className="px-3 py-1 rounded-lg bg-[#d14b4b]/8 border border-[#1f2a30] text-[#e6f1f5] text-sm hover:bg-[#d14b4b]/12 transition-colors cursor-pointer">

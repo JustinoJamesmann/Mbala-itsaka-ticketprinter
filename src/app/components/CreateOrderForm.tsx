@@ -55,7 +55,7 @@ export default function CreateOrderForm({ onSave, onClose }: { onSave: (o: Omit<
 
   return (
     <div className="space-y-6">
-      <div className="glass p-8 neon-glow-pink bg-[#0a0a1a]">
+      <div className="glass p-4 sm:p-6 lg:p-8 neon-glow-pink bg-[#0a0a1a]">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="text-xs text-[#8fa3ad]/95 mb-1 block">Customer Name</label>
@@ -87,7 +87,7 @@ export default function CreateOrderForm({ onSave, onClose }: { onSave: (o: Omit<
                 value={itemName}
                 onChange={(e) => setItemName(e.target.value)}
               />
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <div>
                   <label className="text-xs text-[#8fa3ad]/95 mb-1 block">Quantity</label>
                   <input
@@ -137,7 +137,7 @@ export default function CreateOrderForm({ onSave, onClose }: { onSave: (o: Omit<
             </div>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <div>
               <label className="text-xs text-[#8fa3ad]/95 mb-1 block">Delivery Cost (Optional)</label>
               <input type="number" step="0.01" min={0} value={deliveryCost} onChange={(e) => setDeliveryCost(parseFloat(e.target.value) || 0)} placeholder="0" className="no-spinners" />

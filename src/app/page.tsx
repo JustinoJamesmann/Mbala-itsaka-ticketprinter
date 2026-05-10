@@ -229,7 +229,7 @@ export default function Home() {
   return (
     <div className="min-h-screen flex" style={{ background: '#0d1518' }}>
       <Sidebar currentPage={page} onNavigate={setPage} currentUser={currentUser} onLogout={handleLogout} />
-      <main className="flex-1 ml-64 p-6 overflow-auto min-h-screen">
+      <main className="flex-1 ml-0 lg:ml-64 p-4 lg:p-6 overflow-auto min-h-screen">
         {dataLoading && (
           <div className="fixed top-4 right-4 z-50 glass px-4 py-2 text-xs text-[#e6f1f5]/80">
             Loading data...
@@ -239,7 +239,7 @@ export default function Home() {
           <div className="animate-fade-in-up space-y-6">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-3xl font-bold gradient-text">New Order</h1>
+                <h1 className="text-2xl sm:text-3xl font-bold gradient-text">New Order</h1>
                 <p className="text-[#8fa3ad]/95 text-sm mt-1">Create a ticket sale</p>
               </div>
             </div>

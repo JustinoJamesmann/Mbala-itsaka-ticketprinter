@@ -71,24 +71,24 @@ export default function Report({ orders, currentUser }: { orders: Order[]; curre
         <img src="/logo.png" alt="Logo" />
         <h1>Mbala&amp;Itsaka</h1>
       </div>
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold gradient-text">Report</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold gradient-text">Report</h1>
           <p className="text-[#8fa3ad]/95 text-sm mt-1">Daily sales and stock reports</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full sm:w-auto">
           <label className="text-sm text-[#e6f1f5]/80">Date:</label>
           <Calendar value={selectedDate} onChange={setSelectedDate} />
           <button
             onClick={handlePrint}
-            className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-neon-pink to-neon-purple text-[#e6f1f5] font-medium text-sm hover:opacity-90 transition-opacity cursor-pointer neon-glow-pink"
+            className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-neon-pink to-neon-purple text-[#e6f1f5] font-medium text-sm hover:opacity-90 transition-opacity cursor-pointer neon-glow-pink w-full sm:w-auto"
           >
             🖨️ Print PDF
           </button>
         </div>
       </div>
 
-      <div className="glass p-6">
+      <div className="glass p-4 sm:p-6">
         <h2 className="text-lg font-semibold text-[#e6f1f5]/90 mb-4">Sales Report for {selectedDate}</h2>
         {reportRows.length === 0 ? (
           <div className="text-center py-12 text-[#8fa3ad]/80">No sales found for this date</div>
