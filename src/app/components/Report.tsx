@@ -66,14 +66,14 @@ export default function Report({ orders, currentUser }: { orders: Order[]; curre
   const totalRevenue = reportRows.reduce((sum, row) => sum + row.revenue, 0);
 
   return (
-    <div className="animate-fade-in-up space-y-6">
+    <div className="animate-fade-in-up space-y-4 sm:space-y-6 pt-2">
       <div className="print-header">
         <img src="/logo.png" alt="Logo" />
         <h1>Mbala&amp;Itsaka</h1>
       </div>
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold gradient-text">Report</h1>
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold gradient-text">Report</h1>
           <p className="text-[#8fa3ad]/95 text-sm mt-1">Daily sales and stock reports</p>
         </div>
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full sm:w-auto">
@@ -81,7 +81,7 @@ export default function Report({ orders, currentUser }: { orders: Order[]; curre
           <Calendar value={selectedDate} onChange={setSelectedDate} />
           <button
             onClick={handlePrint}
-            className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-neon-pink to-neon-purple text-[#e6f1f5] font-medium text-sm hover:opacity-90 transition-opacity cursor-pointer neon-glow-pink w-full sm:w-auto"
+            className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-neon-pink to-neon-purple text-[#e6f1f5] font-medium text-sm hover:opacity-90 transition-opacity cursor-pointer neon-glow-pink w-full sm:w-auto"
           >
             🖨️ Print PDF
           </button>
@@ -93,29 +93,29 @@ export default function Report({ orders, currentUser }: { orders: Order[]; curre
         {reportRows.length === 0 ? (
           <div className="text-center py-12 text-[#8fa3ad]/80">No sales found for this date</div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full report-table">
+          <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">
+            <table className="w-full report-table min-w-[500px]">
               <thead>
                 <tr className="text-[#8fa3ad]/80 text-xs border-b border-[#1f2a30]">
-                  <th className="text-left py-3 px-4">Product Name</th>
-                  <th className="text-right py-3 px-4 number">Quantity</th>
-                  <th className="text-right py-3 px-4 number">Revenue</th>
+                  <th className="text-left py-3 px-3 sm:px-4">Product Name</th>
+                  <th className="text-right py-3 px-3 sm:px-4 number">Quantity</th>
+                  <th className="text-right py-3 px-3 sm:px-4 number">Revenue</th>
                 </tr>
               </thead>
               <tbody>
                 {reportRows.map((row) => (
                   <tr key={row.productName} className="border-b border-[#1f2a30] hover:bg-[#d14b4b]/8 transition-colors">
-                    <td className="py-3 px-4 text-[#e6f1f5]/85">{row.productName}</td>
-                    <td className="py-3 px-4 text-right text-[#e6f1f5]/85 number">{row.quantity}</td>
-                    <td className="py-3 px-4 text-right text-neon-green font-medium number">Ar {row.revenue.toFixed(2)}</td>
+                    <td className="py-3 px-3 sm:px-4 text-[#e6f1f5]/85">{row.productName}</td>
+                    <td className="py-3 px-3 sm:px-4 text-right text-[#e6f1f5]/85 number">{row.quantity}</td>
+                    <td className="py-3 px-3 sm:px-4 text-right text-neon-green font-medium number">Ar {row.revenue.toFixed(2)}</td>
                   </tr>
                 ))}
               </tbody>
               <tfoot>
                 <tr>
-                  <td className="py-3 px-4 text-[#e6f1f5]/90">Total</td>
-                  <td className="py-3 px-4 text-right text-[#e6f1f5]/90 number">{totalQuantity}</td>
-                  <td className="py-3 px-4 text-right text-neon-green number">Ar {totalRevenue.toFixed(2)}</td>
+                  <td className="py-3 px-3 sm:px-4 text-[#e6f1f5]/90">Total</td>
+                  <td className="py-3 px-3 sm:px-4 text-right text-[#e6f1f5]/90 number">{totalQuantity}</td>
+                  <td className="py-3 px-3 sm:px-4 text-right text-neon-green number">Ar {totalRevenue.toFixed(2)}</td>
                 </tr>
               </tfoot>
             </table>

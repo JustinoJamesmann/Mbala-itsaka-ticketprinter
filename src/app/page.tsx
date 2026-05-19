@@ -1,10 +1,15 @@
 "use client";
 
 import { Order, Page, User } from "./types";
-import Sidebar from "./components/Sidebar";
 import Report from "./components/Report";
 import CreateOrderForm from "./components/CreateOrderForm";
 import { useState, useEffect } from "react";
+import {
+  autoConnect,
+  printReceipt as blePrint,
+  hasSavedPrinter,
+  type ReceiptLine,
+} from "@/lib/printer";
 
 export default function Home() {
   const [page, setPage] = useState<Page>("newOrder");
@@ -29,6 +34,7 @@ export default function Home() {
       }
     }
     bootstrap();
+    autoConnect();
   }, []);
 
   async function refreshData() {
@@ -85,7 +91,47 @@ export default function Home() {
     await refreshData();
   }
 
-  function printReceipt(order: Order) {
+  function buildReceiptLines(order: Order): ReceiptLine[] {
+    const lines: ReceiptLine[] = [
+      { text: 'Mbala&Itsaka', align: 'center', bold: true, doubleWidth: true },
+      { type: 'spacer' },
+      { text: `Receipt #${order.id}`, align: 'center', bold: true },
+      { text: `Date: ${order.date}`, align: 'center' },
+      { text: `Customer: ${order.customer}`, align: 'center' },
+    ];
+    if (order.phone)   lines.push({ text: `Phone: ${order.phone}`,     align: 'center' });
+    if (order.address) lines.push({ text: `Addr:  ${order.address}`,   align: 'center' });
+    lines.push({ type: 'divider' });
+    order.items.forEach(item => {
+      lines.push({ type: 'columns', left: `${item.productName} x${item.quantity}`, right: `Ar ${item.total.toFixed(2)}` });
+    });
+    lines.push({ type: 'divider' });
+    lines.push({ type: 'columns', left: 'Subtotal', right: `Ar ${order.subtotal.toFixed(2)}` });
+    if (order.deliveryCost > 0)
+      lines.push({ type: 'columns', left: 'Delivery', right: `Ar ${order.deliveryCost.toFixed(2)}` });
+    if (order.remise > 0)
+      lines.push({ type: 'columns', left: 'Remise',   right: `-Ar ${order.remise.toFixed(2)}` });
+    lines.push({ type: 'divider' });
+    lines.push({ type: 'columns', left: 'TOTAL', right: `Ar ${order.total.toFixed(2)}`, bold: true });
+    lines.push({ type: 'spacer' });
+    lines.push({ text: 'misaotra nanjifa', align: 'center', feed: 1 });
+    return lines;
+  }
+
+  async function printOrderReceipt(order: Order) {
+    const bleAvailable = typeof navigator !== 'undefined' && !!(navigator as any).bluetooth;
+    if (bleAvailable && hasSavedPrinter()) {
+      try {
+        await blePrint(buildReceiptLines(order), { paperWidth: 32, cutAfter: true });
+        return;
+      } catch (error) {
+        console.error('BLE print failed, falling back to browser print:', error);
+      }
+    }
+    openPopupReceipt(order);
+  }
+
+  function openPopupReceipt(order: Order) {
     try {
       const printWindow = window.open('', '', 'width=400,height=600');
       if (!printWindow) {
@@ -166,10 +212,10 @@ export default function Home() {
 
   if (!loaded) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: '#0d1518' }}>
-        <div className="text-center">
-          <img src="/logo.png" alt="Mbala&Itsaka" className="h-40 w-auto mx-auto mb-4 object-contain" />
-          <div className="text-3xl font-bold gradient-text mb-2">Mbala&amp;Itsaka</div>
+      <div className="min-h-screen flex items-center justify-center p-4" style={{ background: '#0d1518' }}>
+        <div className="text-center w-full max-w-sm">
+          <img src="/logo.png" alt="Mbala&Itsaka" className="h-24 sm:h-32 md:h-40 w-auto mx-auto mb-4 object-contain" />
+          <div className="text-2xl sm:text-3xl font-bold gradient-text mb-2">Mbala&amp;Itsaka</div>
           <div className="text-sm text-[#8fa3ad]/95 animate-pulse-neon">Loading...</div>
         </div>
       </div>
@@ -178,10 +224,10 @@ export default function Home() {
 
   if (!currentUser) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: '#0d1518' }}>
-        <div className="glass p-8 w-full max-w-md bg-[#0d1518]">
-          <img src="/logo.png" alt="Mbala&Itsaka" className="h-32 w-auto mx-auto mb-3 object-contain" />
-          <h1 className="text-3xl font-bold gradient-text mb-6 text-center">Mbala&amp;Itsaka</h1>
+      <div className="min-h-screen flex items-center justify-center p-4" style={{ background: '#0d1518' }}>
+        <div className="glass p-6 sm:p-8 w-full max-w-md bg-[#0d1518]">
+          <img src="/logo.png" alt="Mbala&Itsaka" className="h-24 sm:h-32 w-auto mx-auto mb-3 object-contain" />
+          <h1 className="text-2xl sm:text-3xl font-bold gradient-text mb-6 text-center">Mbala&amp;Itsaka</h1>
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
               <label className="text-xs text-[#8fa3ad]/95 mb-1 block">Email</label>
@@ -190,6 +236,7 @@ export default function Home() {
                 value={loginUsername}
                 onChange={(e) => setLoginUsername(e.target.value)}
                 required
+                className="w-full py-3 px-4"
               />
             </div>
             <div>
@@ -200,12 +247,12 @@ export default function Home() {
                   value={loginPassword}
                   onChange={(e) => setLoginPassword(e.target.value)}
                   required
-                  className="pr-10"
+                  className="pr-10 w-full py-3 px-4"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8fa3ad]/95 hover:text-[#e6f1f5] transition-colors cursor-pointer"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8fa3ad]/95 hover:text-[#e6f1f5] transition-colors cursor-pointer text-lg"
                 >
                   {showPassword ? "🙈" : "👁️"}
                 </button>
@@ -216,7 +263,7 @@ export default function Home() {
             )}
             <button
               type="submit"
-              className="w-full py-2.5 rounded-xl bg-gradient-to-r from-neon-purple to-neon-cyan text-[#e6f1f5] font-medium text-sm hover:opacity-90 transition-opacity cursor-pointer"
+              className="w-full py-3 rounded-xl bg-gradient-to-r from-neon-purple to-neon-cyan text-[#e6f1f5] font-medium text-sm hover:opacity-90 transition-opacity cursor-pointer"
             >
               Login
             </button>
@@ -227,29 +274,39 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen flex" style={{ background: '#0d1518' }}>
-      <Sidebar currentPage={page} onNavigate={setPage} currentUser={currentUser} onLogout={handleLogout} />
-      <main className="flex-1 ml-0 lg:ml-64 p-4 lg:p-6 overflow-auto min-h-screen">
+    <div className="min-h-screen flex flex-col" style={{ background: '#0d1518' }}>
+
+      {/* Floating logout */}
+      <button
+        onClick={handleLogout}
+        className="fixed top-3 right-3 z-50 p-2.5 rounded-xl bg-[#162126] border border-[#1f2a30] text-[#8fa3ad] hover:text-red-400 hover:border-red-400/20 transition-colors cursor-pointer"
+        title="Sign Out"
+        style={{ boxShadow: '0 2px 8px rgba(127,32,32,0.10)' }}
+      >
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+        </svg>
+      </button>
+
+      {/* Main content */}
+      <main className="flex-1 w-full p-3 sm:p-4 pb-24 overflow-auto min-h-screen">
         {dataLoading && (
-          <div className="fixed top-4 right-4 z-50 glass px-4 py-2 text-xs text-[#e6f1f5]/80">
-            Loading data...
+          <div className="fixed top-3 right-14 z-40 glass px-3 py-2 text-xs text-[#e6f1f5]/80">
+            Loading...
           </div>
         )}
         {page === "newOrder" && (
-          <div className="animate-fade-in-up space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-2xl sm:text-3xl font-bold gradient-text">New Order</h1>
-                <p className="text-[#8fa3ad]/95 text-sm mt-1">Create a ticket sale</p>
-              </div>
+          <div className="animate-fade-in-up space-y-4 sm:space-y-6 pt-2">
+            <div>
+              <h1 className="text-xl sm:text-2xl font-bold gradient-text">New Order</h1>
+              <p className="text-[#8fa3ad]/95 text-sm mt-1">Create a ticket sale</p>
             </div>
             <CreateOrderForm
               onSave={(order) => {
                 const newOrder = { ...order, id: `ORD-${String(orders.length + 1).padStart(3, "0")}` };
                 setOrders([...orders, newOrder]);
                 setPage("report");
-                // Trigger immediate print
-                setTimeout(() => printReceipt(newOrder), 100);
+                setTimeout(() => printOrderReceipt(newOrder), 100);
               }}
               onClose={() => setPage("report")}
             />
@@ -257,6 +314,35 @@ export default function Home() {
         )}
         {page === "report" && <Report orders={orders} currentUser={currentUser} />}
       </main>
+
+      {/* Bottom tab bar */}
+      <nav
+        className="fixed bottom-0 left-0 right-0 z-50 flex"
+        style={{ background: '#162126', borderTop: '1px solid rgba(31,42,48,1)', boxShadow: '0 -4px 24px rgba(127,32,32,0.10)' }}
+      >
+        <button
+          onClick={() => setPage('newOrder')}
+          className={`flex-1 flex flex-col items-center gap-1 py-3 text-xs font-medium transition-colors cursor-pointer ${
+            page === 'newOrder' ? 'text-neon-purple' : 'text-[#8fa3ad]'
+          }`}
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+          <span>New Order</span>
+        </button>
+        <button
+          onClick={() => setPage('report')}
+          className={`flex-1 flex flex-col items-center gap-1 py-3 text-xs font-medium transition-colors cursor-pointer ${
+            page === 'report' ? 'text-neon-purple' : 'text-[#8fa3ad]'
+          }`}
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+          </svg>
+          <span>Report</span>
+        </button>
+      </nav>
     </div>
   );
 }

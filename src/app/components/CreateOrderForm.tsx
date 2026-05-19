@@ -54,22 +54,22 @@ export default function CreateOrderForm({ onSave, onClose }: { onSave: (o: Omit<
   const total = Math.max(0, subtotal + deliveryCost - remise);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div className="glass p-4 sm:p-6 lg:p-8 neon-glow-pink bg-[#0a0a1a]">
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
           <div>
             <label className="text-xs text-[#8fa3ad]/95 mb-1 block">Customer Name</label>
-            <input type="text" required value={customer} onChange={(e) => setCustomer(e.target.value)} placeholder="Customer name" />
+            <input type="text" required value={customer} onChange={(e) => setCustomer(e.target.value)} placeholder="Customer name" className="w-full py-3 px-4" />
           </div>
 
           <div>
             <label className="text-xs text-[#8fa3ad]/95 mb-1 block">Phone Number (Optional)</label>
-            <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone number" />
+            <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone number" className="w-full py-3 px-4" />
           </div>
 
           <div>
             <label className="text-xs text-[#8fa3ad]/95 mb-1 block">Address (Optional)</label>
-            <input type="text" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Delivery address" />
+            <input type="text" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Delivery address" className="w-full py-3 px-4" />
           </div>
 
           <div>
@@ -86,6 +86,7 @@ export default function CreateOrderForm({ onSave, onClose }: { onSave: (o: Omit<
                 placeholder="Item name"
                 value={itemName}
                 onChange={(e) => setItemName(e.target.value)}
+                className="w-full py-3 px-4"
               />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <div>
@@ -96,7 +97,7 @@ export default function CreateOrderForm({ onSave, onClose }: { onSave: (o: Omit<
                     placeholder="QTY"
                     value={qty}
                     onChange={(e) => setQty(e.target.value)}
-                    className="no-spinners"
+                    className="no-spinners w-full py-3 px-4"
                   />
                 </div>
                 <div>
@@ -108,11 +109,11 @@ export default function CreateOrderForm({ onSave, onClose }: { onSave: (o: Omit<
                     placeholder="price"
                     value={price}
                     onChange={(e) => setPrice(e.target.value)}
-                    className="no-spinners"
+                    className="no-spinners w-full py-3 px-4"
                   />
                 </div>
               </div>
-              <button type="button" onClick={addItem} className="w-full px-4 py-2 rounded-xl bg-neon-purple/20 text-neon-purple text-sm hover:bg-neon-purple/30 transition-colors cursor-pointer">
+              <button type="button" onClick={addItem} className="w-full px-4 py-3 rounded-xl bg-neon-purple/20 text-neon-purple text-sm hover:bg-neon-purple/30 transition-colors cursor-pointer">
                 Add Item
               </button>
             </div>
@@ -124,13 +125,13 @@ export default function CreateOrderForm({ onSave, onClose }: { onSave: (o: Omit<
               <label className="text-xs text-[#8fa3ad]/95 mb-1 block">Items</label>
               {items.map((item, index) => (
                 <div key={index} className="flex items-center justify-between p-3 rounded-xl bg-[#0d1518] border border-[#1f2a30]">
-                  <div>
-                    <div className="text-sm text-[#e6f1f5]/90">{item.productName}</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm text-[#e6f1f5]/90 truncate">{item.productName}</div>
                     <div className="text-xs text-[#8fa3ad]/95">{item.quantity}x @ Ar {item.price.toFixed(2)}</div>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 sm:gap-3">
                     <div className="text-sm text-neon-green">Ar {item.total.toFixed(2)}</div>
-                    <button type="button" onClick={() => removeItem(index)} className="text-red-400 hover:text-red-300 cursor-pointer">✕</button>
+                    <button type="button" onClick={() => removeItem(index)} className="text-red-400 hover:text-red-300 cursor-pointer text-lg p-1">✕</button>
                   </div>
                 </div>
               ))}
@@ -140,11 +141,11 @@ export default function CreateOrderForm({ onSave, onClose }: { onSave: (o: Omit<
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <div>
               <label className="text-xs text-[#8fa3ad]/95 mb-1 block">Delivery Cost (Optional)</label>
-              <input type="number" step="0.01" min={0} value={deliveryCost} onChange={(e) => setDeliveryCost(parseFloat(e.target.value) || 0)} placeholder="0" className="no-spinners" />
+              <input type="number" step="0.01" min={0} value={deliveryCost} onChange={(e) => setDeliveryCost(parseFloat(e.target.value) || 0)} placeholder="0" className="no-spinners w-full py-3 px-4" />
             </div>
             <div>
               <label className="text-xs text-[#8fa3ad]/95 mb-1 block">Remise/Discount (Optional)</label>
-              <input type="number" step="0.01" min={0} value={remise} onChange={(e) => setRemise(parseFloat(e.target.value) || 0)} placeholder="0" className="no-spinners" />
+              <input type="number" step="0.01" min={0} value={remise} onChange={(e) => setRemise(parseFloat(e.target.value) || 0)} placeholder="0" className="no-spinners w-full py-3 px-4" />
             </div>
           </div>
 
@@ -174,11 +175,11 @@ export default function CreateOrderForm({ onSave, onClose }: { onSave: (o: Omit<
             </div>
           )}
 
-          <div className="flex gap-3 pt-2">
-            <button type="submit" disabled={!customer || items.length === 0} className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-neon-pink to-neon-purple text-[#e6f1f5] font-medium text-sm hover:opacity-90 transition-opacity cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed neon-glow-pink">
+          <div className="flex gap-2 sm:gap-3 pt-2">
+            <button type="submit" disabled={!customer || items.length === 0} className="flex-1 py-3 rounded-xl bg-gradient-to-r from-neon-pink to-neon-purple text-[#e6f1f5] font-medium text-sm hover:opacity-90 transition-opacity cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed neon-glow-pink">
               Create Order & Print
             </button>
-            <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-xl bg-[#d14b4b]/8 border border-[#1f2a30] text-[#e6f1f5]/80 text-sm hover:bg-[#d14b4b]/10 transition-colors cursor-pointer">
+            <button type="button" onClick={onClose} className="flex-1 py-3 rounded-xl bg-[#d14b4b]/8 border border-[#1f2a30] text-[#e6f1f5]/80 text-sm hover:bg-[#d14b4b]/10 transition-colors cursor-pointer">
               Cancel
             </button>
           </div>
