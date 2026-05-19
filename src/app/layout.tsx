@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Poppins, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -17,7 +17,13 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "Mbala&Itsaka — Stock & Sales Management",
   description: "Mbala&Itsaka Stock & Sales Management Dashboard",
-  viewport: "width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
 };
 
 export default function RootLayout({
