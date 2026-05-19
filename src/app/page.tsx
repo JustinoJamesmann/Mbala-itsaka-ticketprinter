@@ -122,6 +122,12 @@ export default function Home() {
     });
     lines.push({ type: 'divider' });
     lines.push({ type: 'columns', left: 'Subtotal', right: money(order.subtotal) });
+    if (order.deliveryCost > 0) {
+      lines.push({ type: 'columns', left: 'Livraison', right: money(order.deliveryCost) });
+    }
+    if (order.remise > 0) {
+      lines.push({ type: 'columns', left: 'Remise', right: `- ${money(order.remise)}` });
+    }
     lines.push({ type: 'divider' });
     lines.push({ type: 'columns', left: 'TOTAL', right: money(order.total), bold: true });
     lines.push({ type: 'divider' });
@@ -261,11 +267,21 @@ export default function Home() {
               </button>
             </div>
             <CreateOrderForm
-              onSave={(order) => {
-                const newOrder = { ...order, id: `ORD-${String(orders.length + 1).padStart(3, "0")}` };
-                setOrders([...orders, newOrder]);
+              onSave={async (order) => {
+                const response = await fetch("/api/orders", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify(order),
+                });
+                const data = await response.json();
+                if (!response.ok) {
+                  alert(data.error || "Failed to save order");
+                  return;
+                }
+                const savedOrder = data.order as Order;
+                setOrders([savedOrder, ...orders]);
                 setPage("report");
-                setTimeout(() => printOrderReceipt(newOrder), 100);
+                setTimeout(() => printOrderReceipt(savedOrder), 100);
               }}
               onClose={() => setPage("report")}
             />

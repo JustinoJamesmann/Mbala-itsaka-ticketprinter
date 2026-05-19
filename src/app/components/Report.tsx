@@ -8,6 +8,7 @@ export default function Report({ orders, currentUser, onRefresh }: { orders: Ord
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
   const [showAll, setShowAll] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [expandedOrders, setExpandedOrders] = useState<Record<string, boolean>>({});
 
   async function handleRefresh() {
     if (!onRefresh) return;
@@ -102,27 +103,37 @@ export default function Report({ orders, currentUser, onRefresh }: { orders: Ord
           {visibleOrders.map(order => (
             <div key={order.id} className="glass p-4 rounded-2xl space-y-3">
               {/* Order header */}
-              <div className="flex items-start justify-between gap-2">
+              <button
+                type="button"
+                onClick={() => setExpandedOrders(prev => ({ ...prev, [order.id]: !prev[order.id] }))}
+                className="w-full flex items-start justify-between gap-2 text-left cursor-pointer"
+              >
                 <div className="min-w-0">
                   <div className="text-sm font-semibold text-[#e6f1f5]">{order.customer}</div>
                   {order.phone   && <div className="text-xs text-[#8fa3ad]/80">{order.phone}</div>}
-                  {order.address && <div className="text-xs text-[#8fa3ad]/80">{order.address}</div>}
+                  <div className="text-xs text-[#8fa3ad]/80 capitalize">{order.status}</div>
                 </div>
                 <div className="text-right shrink-0">
                   <div className="text-xs text-[#8fa3ad]/60">{order.id}</div>
                   <div className="text-xs text-[#8fa3ad]/60">{order.date}</div>
+                  {order.deliveryCost > 0 && <div className="text-xs text-[#8fa3ad]/70">Livraison: Ar {order.deliveryCost.toFixed(2)}</div>}
+                  {order.remise > 0 && <div className="text-xs text-[#8fa3ad]/70">Remise: Ar {order.remise.toFixed(2)}</div>}
+                  <div className="text-sm font-bold text-neon-green">Ar {order.total.toFixed(2)}</div>
                 </div>
-              </div>
+              </button>
 
               {/* Items */}
-              <div className="space-y-1 border-t border-[#1f2a30] pt-2">
-                {order.items.map((item, i) => (
-                  <div key={i} className="flex justify-between text-sm">
-                    <span className="text-[#e6f1f5]/80 truncate flex-1">{item.productName} <span className="text-[#8fa3ad]/60">×{item.quantity}</span></span>
-                    <span className="text-[#e6f1f5]/80 ml-2 shrink-0">Ar {item.total.toFixed(2)}</span>
-                  </div>
-                ))}
-              </div>
+              {expandedOrders[order.id] && (
+                <div className="space-y-1 border-t border-[#1f2a30] pt-2">
+                  {order.address && <div className="text-xs text-[#8fa3ad]/80 pb-1">{order.address}</div>}
+                  {order.items.map((item, i) => (
+                    <div key={i} className="flex justify-between text-sm">
+                      <span className="text-[#e6f1f5]/80 truncate flex-1">{item.productName} <span className="text-[#8fa3ad]/60">×{item.quantity}</span></span>
+                      <span className="text-[#e6f1f5]/80 ml-2 shrink-0">Ar {item.total.toFixed(2)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
 
               {/* Totals */}
               <div className="border-t border-[#1f2a30] pt-2 space-y-1">

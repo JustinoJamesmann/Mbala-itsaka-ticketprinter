@@ -22,10 +22,8 @@ export async function POST(request: NextRequest) {
   try {
     const order = await request.json() as Omit<Order, "id">;
     const supabase = createAdminClient();
-    const orderId = `ORD-${Date.now()}`;
 
     const { data: createdOrder, error: orderError } = await supabase.from("orders").insert({
-      id: orderId,
       customer: order.customer,
       phone: order.phone || null,
       address: order.address || null,
@@ -33,15 +31,15 @@ export async function POST(request: NextRequest) {
       delivery_cost: order.deliveryCost || 0,
       remise: order.remise || 0,
       total: order.total,
-      status: order.status,
-      order_date: order.date,
+      status: "confirmed",
+      order_date: new Date().toISOString().split("T")[0],
     }).select("*").single();
 
     if (orderError) return NextResponse.json({ error: orderError.message }, { status: 500 });
 
     const { error: itemsError } = await supabase.from("order_items").insert(order.items.map(item => ({
-      order_id: orderId,
-      product_id: item.productId,
+      order_id: createdOrder.id,
+      product_id: item.productId || crypto.randomUUID(),
       product_name: item.productName,
       quantity: item.quantity,
       price: item.price,
@@ -50,7 +48,15 @@ export async function POST(request: NextRequest) {
 
     if (itemsError) return NextResponse.json({ error: itemsError.message }, { status: 500 });
 
-    return NextResponse.json({ order: { ...order, id: orderId } });
+    const { data: savedOrder, error: savedOrderError } = await supabase
+      .from("orders")
+      .select("*, order_items(*)")
+      .eq("id", createdOrder.id)
+      .single();
+
+    if (savedOrderError) return NextResponse.json({ error: savedOrderError.message }, { status: 500 });
+
+    return NextResponse.json({ order: mapOrder(savedOrder) });
   } catch (error) {
     console.error("Orders POST error:", error);
     return NextResponse.json({ error: "Failed to create order" }, { status: 500 });
