@@ -130,7 +130,7 @@ export default function Home() {
       return;
     }
     try {
-      await blePrint(buildReceiptLines(order), { paperWidth: 32, cutAfter: true });
+      await blePrint(buildReceiptLines(order), { paperWidth: 48, cutAfter: true });
     } catch (error) {
       console.error('BLE print error:', error);
       alert('Could not print. Tap Connect Printer first, then try again.');

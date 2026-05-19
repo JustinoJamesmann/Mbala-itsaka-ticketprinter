@@ -103,7 +103,8 @@ export async function connectPrinter(): Promise<boolean> {
 
   try {
     _device = await (navigator as any).bluetooth.requestDevice({
-      filters: [{ services: [PRINTER_SERVICE_UUID] }],
+      acceptAllDevices: true,
+      optionalServices: [PRINTER_SERVICE_UUID],
     });
 
     localStorage.setItem(STORAGE_KEY, _device.id);
