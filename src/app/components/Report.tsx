@@ -4,124 +4,147 @@ import { Order, User } from "../types";
 import { useState } from "react";
 import Calendar from "./Calendar";
 
-export default function Report({ orders, currentUser }: { orders: Order[]; currentUser: User }) {
+export default function Report({ orders, currentUser, onRefresh }: { orders: Order[]; currentUser: User; onRefresh?: () => void }) {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
+  const [showAll, setShowAll] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
-  function handlePrint() {
-    window.print();
+  async function handleRefresh() {
+    if (!onRefresh) return;
+    setRefreshing(true);
+    await onRefresh();
+    setRefreshing(false);
   }
 
-  // Add print styles dynamically
-  if (typeof window !== "undefined") {
-    const style = document.createElement("style");
-    style.innerHTML = `
-      @media print {
-        aside, .no-print { display: none !important; }
-        main { margin-left: 0 !important; padding: 20px !important; }
-        .glass { background: #fff !important; border: none !important; color: #000 !important; box-shadow: none !important; }
-        .neon-glow-purple, .neon-glow-green, .neon-glow-cyan, .neon-glow-pink { box-shadow: none !important; }
-        .gradient-text { background: none !important; -webkit-text-fill-color: #000 !important; color: #000 !important; }
-        body { background: #fff !important; color: #000 !important; }
-        * { color: #000 !important; }
-        .text-[#e6f1f5]\\/40, .text-[#e6f1f5]\\/30, .text-[#e6f1f5]\\/20, .text-[#e6f1f5]\\/50, .text-[#e6f1f5]\\/60, .text-[#e6f1f5]\\/70, .text-[#e6f1f5]\\/80 { color: #000 !important; }
-        .text-neon-purple, .text-neon-green, .text-neon-cyan, .text-neon-pink { color: #000 !important; }
-        .bg-\\[\\#7F2020\\]\\/5 { background: #fff !important; }
-        .border-\\[\\#C9CAAC\\]\\/40, .border-\\[\\#C9CAAC\\]\\/60 { border-color: #000 !important; }
-        button { display: none !important; }
-        .print-header { display: block !important; text-align: center; margin-bottom: 30px; }
-        .print-header img { max-width: 150px; height: auto; }
-        .print-header h1 { font-size: 24px; font-weight: bold; margin: 10px 0; color: #000 !important; }
-        .report-summary, .stock-note, .screen-only { display: none !important; }
-        .report-table { width: 100% !important; border-collapse: collapse !important; font-size: 11px !important; }
-        .report-table th, .report-table td { border: 1px solid #000 !important; padding: 7px !important; color: #000 !important; }
-        .report-table th { background: #f0f0f0 !important; font-weight: bold !important; text-align: left !important; }
-        .report-table td.number, .report-table th.number { text-align: right !important; }
-        .report-table tfoot td { font-weight: bold !important; background: #f0f0f0 !important; }
-      }
-      @media screen {
-        .print-header { display: none !important; }
-      }
-    `;
-    if (!document.head.querySelector('style[data-print-styles]')) {
-      style.setAttribute('data-print-styles', 'true');
-      document.head.appendChild(style);
-    }
-  }
+  const visibleOrders = (showAll
+    ? orders
+    : orders.filter(o => o.date === selectedDate)
+  ).filter(o => o.status !== "cancelled");
 
-  const filteredOrders = orders.filter(order => order.date === selectedDate && order.status !== "cancelled");
-  const reportRows = Object.values(filteredOrders.reduce((acc, order) => {
-    order.items.forEach(item => {
-      const existing = acc[item.productName] || {
-        productName: item.productName,
-        quantity: 0,
-        revenue: 0,
-      };
-      existing.quantity += item.quantity;
-      existing.revenue += item.total;
-      acc[item.productName] = existing;
-    });
-    return acc;
-  }, {} as Record<string, { productName: string; quantity: number; revenue: number }>));
-  const totalQuantity = reportRows.reduce((sum, row) => sum + row.quantity, 0);
-  const totalRevenue = reportRows.reduce((sum, row) => sum + row.revenue, 0);
+  const totalRevenue = visibleOrders.reduce((sum, o) => sum + o.total, 0);
+  const totalOrders  = visibleOrders.length;
 
   return (
-    <div className="animate-fade-in-up space-y-4 sm:space-y-6 pt-2">
-      <div className="print-header">
-        <img src="/logo.png" alt="Logo" />
-        <h1>Mbala&amp;Itsaka</h1>
-      </div>
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold gradient-text">Report</h1>
-          <p className="text-[#8fa3ad]/95 text-sm mt-1">Daily sales and stock reports</p>
-        </div>
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full sm:w-auto">
-          <label className="text-sm text-[#e6f1f5]/80">Date:</label>
-          <Calendar value={selectedDate} onChange={setSelectedDate} />
-          <button
-            onClick={handlePrint}
-            className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-neon-pink to-neon-purple text-[#e6f1f5] font-medium text-sm hover:opacity-90 transition-opacity cursor-pointer neon-glow-pink w-full sm:w-auto"
-          >
-            🖨️ Print PDF
-          </button>
-        </div>
-      </div>
+    <div className="animate-fade-in-up space-y-4 pt-2">
 
-      <div className="glass p-4 sm:p-6">
-        <h2 className="text-lg font-semibold text-[#e6f1f5]/90 mb-4">Sales Report for {selectedDate}</h2>
-        {reportRows.length === 0 ? (
-          <div className="text-center py-12 text-[#8fa3ad]/80">No sales found for this date</div>
-        ) : (
-          <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">
-            <table className="w-full report-table min-w-[500px]">
-              <thead>
-                <tr className="text-[#8fa3ad]/80 text-xs border-b border-[#1f2a30]">
-                  <th className="text-left py-3 px-3 sm:px-4">Product Name</th>
-                  <th className="text-right py-3 px-3 sm:px-4 number">Quantity</th>
-                  <th className="text-right py-3 px-3 sm:px-4 number">Revenue</th>
-                </tr>
-              </thead>
-              <tbody>
-                {reportRows.map((row) => (
-                  <tr key={row.productName} className="border-b border-[#1f2a30] hover:bg-[#d14b4b]/8 transition-colors">
-                    <td className="py-3 px-3 sm:px-4 text-[#e6f1f5]/85">{row.productName}</td>
-                    <td className="py-3 px-3 sm:px-4 text-right text-[#e6f1f5]/85 number">{row.quantity}</td>
-                    <td className="py-3 px-3 sm:px-4 text-right text-neon-green font-medium number">Ar {row.revenue.toFixed(2)}</td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr>
-                  <td className="py-3 px-3 sm:px-4 text-[#e6f1f5]/90">Total</td>
-                  <td className="py-3 px-3 sm:px-4 text-right text-[#e6f1f5]/90 number">{totalQuantity}</td>
-                  <td className="py-3 px-3 sm:px-4 text-right text-neon-green number">Ar {totalRevenue.toFixed(2)}</td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold gradient-text">Report</h1>
+          <p className="text-[#8fa3ad]/95 text-sm mt-0.5">Order history</p>
+        </div>
+        {onRefresh && (
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="p-2.5 rounded-xl bg-[#162126] border border-[#1f2a30] text-[#8fa3ad] hover:text-[#e6f1f5] transition-colors cursor-pointer disabled:opacity-50"
+            title="Refresh"
+          >
+            <svg className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+          </button>
         )}
       </div>
+
+      {/* Date filter row */}
+      <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+        <div className="flex items-center gap-2 flex-1">
+          <label className="text-sm text-[#e6f1f5]/80 shrink-0">Date:</label>
+          <div className={showAll ? 'opacity-40 pointer-events-none' : ''}>
+            <Calendar value={selectedDate} onChange={setSelectedDate} />
+          </div>
+        </div>
+        <button
+          onClick={() => setShowAll(v => !v)}
+          className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-colors cursor-pointer border ${
+            showAll
+              ? 'bg-neon-purple/20 border-neon-purple/40 text-neon-purple'
+              : 'bg-[#162126] border-[#1f2a30] text-[#8fa3ad]'
+          }`}
+        >
+          {showAll ? 'All dates ✓' : 'All dates'}
+        </button>
+      </div>
+
+      {/* Summary bar */}
+      {totalOrders > 0 && (
+        <div className="flex gap-3">
+          <div className="glass flex-1 p-3 rounded-xl text-center">
+            <div className="text-xs text-[#8fa3ad]/80 mb-0.5">Orders</div>
+            <div className="text-lg font-bold text-[#e6f1f5]">{totalOrders}</div>
+          </div>
+          <div className="glass flex-1 p-3 rounded-xl text-center">
+            <div className="text-xs text-[#8fa3ad]/80 mb-0.5">Revenue</div>
+            <div className="text-lg font-bold text-neon-green">Ar {totalRevenue.toFixed(2)}</div>
+          </div>
+        </div>
+      )}
+
+      {/* Order list */}
+      {visibleOrders.length === 0 ? (
+        <div className="glass p-8 rounded-2xl text-center">
+          <div className="text-4xl mb-3">📋</div>
+          <div className="text-[#8fa3ad]/80 text-sm">
+            {showAll ? 'No orders yet' : `No orders for ${selectedDate}`}
+          </div>
+          {!showAll && (
+            <button
+              onClick={() => setShowAll(true)}
+              className="mt-3 text-xs text-neon-purple underline cursor-pointer"
+            >
+              Show all dates
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {visibleOrders.map(order => (
+            <div key={order.id} className="glass p-4 rounded-2xl space-y-3">
+              {/* Order header */}
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="text-sm font-semibold text-[#e6f1f5]">{order.customer}</div>
+                  {order.phone   && <div className="text-xs text-[#8fa3ad]/80">{order.phone}</div>}
+                  {order.address && <div className="text-xs text-[#8fa3ad]/80">{order.address}</div>}
+                </div>
+                <div className="text-right shrink-0">
+                  <div className="text-xs text-[#8fa3ad]/60">{order.id}</div>
+                  <div className="text-xs text-[#8fa3ad]/60">{order.date}</div>
+                </div>
+              </div>
+
+              {/* Items */}
+              <div className="space-y-1 border-t border-[#1f2a30] pt-2">
+                {order.items.map((item, i) => (
+                  <div key={i} className="flex justify-between text-sm">
+                    <span className="text-[#e6f1f5]/80 truncate flex-1">{item.productName} <span className="text-[#8fa3ad]/60">×{item.quantity}</span></span>
+                    <span className="text-[#e6f1f5]/80 ml-2 shrink-0">Ar {item.total.toFixed(2)}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Totals */}
+              <div className="border-t border-[#1f2a30] pt-2 space-y-1">
+                {order.deliveryCost > 0 && (
+                  <div className="flex justify-between text-xs text-[#8fa3ad]/70">
+                    <span>Delivery</span><span>Ar {order.deliveryCost.toFixed(2)}</span>
+                  </div>
+                )}
+                {order.remise > 0 && (
+                  <div className="flex justify-between text-xs text-[#8fa3ad]/70">
+                    <span>Remise</span><span>- Ar {order.remise.toFixed(2)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-sm font-bold">
+                  <span className="text-neon-green">TOTAL</span>
+                  <span className="text-neon-green">Ar {order.total.toFixed(2)}</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

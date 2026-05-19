@@ -312,7 +312,7 @@ export default function Home() {
             />
           </div>
         )}
-        {page === "report" && <Report orders={orders} currentUser={currentUser} />}
+        {page === "report" && <Report orders={orders} currentUser={currentUser} onRefresh={refreshData} />}
       </main>
 
       {/* Bottom tab bar */}
