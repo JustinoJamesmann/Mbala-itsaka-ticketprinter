@@ -1,14 +1,3 @@
-/**
- * printer.ts — Bluetooth Thermal Receipt Printer Module
- * -------------------------------------------------------
- * Target:   Android (Chrome 85+) — Web Bluetooth API (BLE/GATT)
- * Protocol: ESC/POS
- */
-
-// ─── GATT UUIDs ───────────────────────────────────────────────────────────────
-const PRINTER_SERVICE_UUID = '000018f0-0000-1000-8000-00805f9b34fb';
-const PRINTER_CHAR_UUID    = '00002af1-0000-1000-8000-00805f9b34fb';
-
 // ─── ESC/POS COMMAND BYTES ────────────────────────────────────────────────────
 const ESC = 0x1B;
 const GS  = 0x1D;
@@ -56,15 +45,11 @@ export type PrintOptions = {
 
 // ─── STATE ────────────────────────────────────────────────────────────────────
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-let _device:    any = null;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let _server:    any = null;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let _char:      any = null;
+let _port:      any = null;
 let _status:    PrinterStatus = 'disconnected';
 let _listeners: ((s: PrinterStatus) => void)[] = [];
 
-const STORAGE_KEY = 'ble_printer_device_id';
+const STORAGE_KEY = 'serial_printer_port_saved';
 
 // ─── STATUS ───────────────────────────────────────────────────────────────────
 function _setStatus(s: PrinterStatus) {
@@ -89,27 +74,22 @@ export function getPrinterStatus(): PrinterStatus {
   return _status;
 }
 
-// ─── CONNECT: FIRST-TIME PAIRING ─────────────────────────────────────────────
-/**
- * Opens the Chrome BLE device picker for first-time pairing.
- * Must be called from a user gesture (button click).
- */
 export async function connectPrinter(): Promise<boolean> {
-  if (typeof navigator === 'undefined' || !(navigator as any).bluetooth) {
-    throw new Error('Web Bluetooth API not available. Use Chrome on Android.');
+  if (typeof navigator === 'undefined' || !(navigator as any).serial) {
+    throw new Error('Web Serial API not available. Use Chrome on Android.');
   }
 
   _setStatus('reconnecting');
 
   try {
-    _device = await (navigator as any).bluetooth.requestDevice({
-      acceptAllDevices: true,
-      optionalServices: [PRINTER_SERVICE_UUID],
+    _port = await (navigator as any).serial.requestPort({
+      allowedBluetoothServiceClassIds: [
+        (globalThis as any).BluetoothUUID.getService('serial-port'),
+      ],
     });
 
-    localStorage.setItem(STORAGE_KEY, _device.id);
-    _device.addEventListener('gattserverdisconnected', _onDisconnected);
-    await _connect(_device);
+    localStorage.setItem(STORAGE_KEY, 'true');
+    await _connect(_port);
     return true;
 
   } catch (err: any) {
@@ -119,30 +99,24 @@ export async function connectPrinter(): Promise<boolean> {
   }
 }
 
-// ─── AUTO-CONNECT: SILENT RECONNECT ──────────────────────────────────────────
-/**
- * Call this on every page load.
- * Silently reconnects to the last paired printer — no picker shown.
- */
 export async function autoConnect(): Promise<boolean> {
-  if (typeof navigator === 'undefined' || !(navigator as any).bluetooth) return false;
+  if (typeof navigator === 'undefined' || !(navigator as any).serial) return false;
 
-  const savedId = typeof localStorage !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null;
-  if (!savedId) return false;
+  const saved = typeof localStorage !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null;
+  if (!saved) return false;
 
   _setStatus('reconnecting');
 
   try {
-    const devices: any[] = await (navigator as any).bluetooth.getDevices();
-    _device = devices.find((d: any) => d.id === savedId) ?? null;
+    const ports: any[] = await (navigator as any).serial.getPorts();
+    _port = ports[0] ?? null;
 
-    if (!_device) {
+    if (!_port) {
       _setStatus('disconnected');
       return false;
     }
 
-    _device.addEventListener('gattserverdisconnected', _onDisconnected);
-    await _connect(_device);
+    await _connect(_port);
     return true;
 
   } catch {
@@ -151,43 +125,24 @@ export async function autoConnect(): Promise<boolean> {
   }
 }
 
-// ─── INTERNAL: GATT CONNECTION ────────────────────────────────────────────────
-async function _connect(device: any): Promise<void> {
-  _server = await device.gatt.connect();
-  const service = await _server.getPrimaryService(PRINTER_SERVICE_UUID);
-  _char = await service.getCharacteristic(PRINTER_CHAR_UUID);
+async function _connect(port: any): Promise<void> {
+  await port.open({ baudRate: 9600 });
   _setStatus('connected');
 }
 
 async function _ensureConnected(): Promise<void> {
-  if (_server && _server.connected) return;
-  if (!_device) throw new Error('No printer paired. Call connectPrinter() first.');
+  if (_port?.writable) return;
+  if (!_port) throw new Error('No printer paired. Call connectPrinter() first.');
   _setStatus('reconnecting');
-  await _connect(_device);
-}
-
-function _onDisconnected() {
-  _setStatus('disconnected');
-  setTimeout(async () => {
-    try { await _ensureConnected(); } catch (_) {}
-  }, 2000);
+  await _connect(_port);
 }
 
 // ─── PRINT ────────────────────────────────────────────────────────────────────
-/**
- * Print a receipt via BLE ESC/POS.
- *
- * Line types:
- *   { text, align?, bold?, doubleWidth?, underline?, feed? }
- *   { type: 'divider' }
- *   { type: 'spacer' }
- *   { type: 'columns', left, right, bold? }
- */
 export async function printReceipt(lines: ReceiptLine[], options: PrintOptions = {}): Promise<void> {
   await _ensureConnected();
 
   const {
-    paperWidth = 32,
+    paperWidth = 48,
     cutAfter   = true,
     partialCut = false,
   } = options;
@@ -258,13 +213,15 @@ export async function printReceipt(lines: ReceiptLine[], options: PrintOptions =
 
 async function _sendBuffer(byteArray: number[], chunkSize = 512): Promise<void> {
   const total = byteArray.length;
+  const writer = _port.writable.getWriter();
   for (let offset = 0; offset < total; offset += chunkSize) {
     const chunk = new Uint8Array(byteArray.slice(offset, offset + chunkSize));
-    await _char.writeValueWithoutResponse(chunk);
+    await writer.write(chunk);
     if (offset + chunkSize < total) {
       await _delay(20);
     }
   }
+  writer.releaseLock();
 }
 
 function _delay(ms: number): Promise<void> {
@@ -272,26 +229,17 @@ function _delay(ms: number): Promise<void> {
 }
 
 // ─── FORGET ───────────────────────────────────────────────────────────────────
-/**
- * Disconnect and clear the saved pairing.
- * Call this to switch to a different printer.
- */
-export function forgetPrinter(): void {
-  if (_device && _server && _server.connected) {
-    _device.gatt.disconnect();
+export async function forgetPrinter(): Promise<void> {
+  if (_port) {
+    try { await _port.close(); } catch (_) {}
   }
-  _device = null;
-  _server = null;
-  _char   = null;
+  _port = null;
   if (typeof localStorage !== 'undefined') {
     localStorage.removeItem(STORAGE_KEY);
   }
   _setStatus('disconnected');
 }
 
-/**
- * Returns true if there is a saved printer pairing in localStorage.
- */
 export function hasSavedPrinter(): boolean {
   if (typeof localStorage === 'undefined') return false;
   return !!localStorage.getItem(STORAGE_KEY);

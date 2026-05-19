@@ -7,7 +7,7 @@ import { useState, useEffect } from "react";
 import {
   autoConnect,
   connectPrinter,
-  printReceipt as blePrint,
+  printReceipt as serialPrint,
   onStatusChange,
   type PrinterStatus,
   type ReceiptLine,
@@ -124,15 +124,15 @@ export default function Home() {
   }
 
   async function printOrderReceipt(order: Order) {
-    const bleAvailable = typeof navigator !== 'undefined' && !!(navigator as any).bluetooth;
-    if (!bleAvailable) {
-      alert('Web Bluetooth is only available in Chrome on Android.');
+    const serialAvailable = typeof navigator !== 'undefined' && !!(navigator as any).serial;
+    if (!serialAvailable) {
+      alert('Web Serial is only available in Chrome on Android.');
       return;
     }
     try {
-      await blePrint(buildReceiptLines(order), { paperWidth: 48, cutAfter: true });
+      await serialPrint(buildReceiptLines(order), { paperWidth: 48, cutAfter: true });
     } catch (error) {
-      console.error('BLE print error:', error);
+      console.error('Serial print error:', error);
       alert('Could not print. Tap Connect Printer first, then try again.');
     }
   }
@@ -141,7 +141,7 @@ export default function Home() {
     try {
       await connectPrinter();
     } catch (error: any) {
-      alert(error.message || 'Could not connect to printer. Use Chrome on Android with Bluetooth enabled.');
+      alert(error.message || 'Could not connect to printer. Use Chrome on Android after pairing the printer in Android Bluetooth settings.');
     }
   }
 
