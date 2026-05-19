@@ -84,7 +84,7 @@ export async function connectPrinter(): Promise<boolean> {
   try {
     _port = await (navigator as any).serial.requestPort({
       allowedBluetoothServiceClassIds: [
-        (globalThis as any).BluetoothUUID.getService('serial-port'),
+        '00001101-0000-1000-8000-00805f9b34fb',
       ],
     });
 
