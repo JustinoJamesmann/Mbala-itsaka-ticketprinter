@@ -97,20 +97,25 @@ export default function Home() {
   }
 
   function buildReceiptLines(order: Order): ReceiptLine[] {
+    const field = (label: string, value: string) => `${label}:`.padEnd(14) + value;
     const lines: ReceiptLine[] = [
       { text: 'Mbala&Itsaka', align: 'center', bold: true, doubleWidth: true },
       { type: 'spacer' },
       { text: `Receipt #${order.id}`, align: 'center', bold: true },
-      { text: `Date: ${order.date}`, align: 'center' },
-      { text: `Customer: ${order.customer}`, align: 'center' },
+      { text: field('Date', order.date), align: 'left' },
+      { text: field('Customer', order.customer), align: 'left' },
     ];
-    if (order.phone)   lines.push({ text: `Phone: ${order.phone}`,     align: 'center' });
-    if (order.address) lines.push({ text: `Addr:  ${order.address}`,   align: 'center' });
+    if (order.phone)   lines.push({ text: field('Phone', order.phone), align: 'left' });
+    if (order.address) lines.push({ text: field('Address', order.address), align: 'left' });
+    lines.push({ type: 'spacer' });
     lines.push({ type: 'divider' });
+    lines.push({ type: 'spacer' });
     order.items.forEach(item => {
       lines.push({ type: 'columns', left: `${item.productName} x${item.quantity}`, right: `Ar ${item.total.toFixed(2)}` });
     });
+    lines.push({ type: 'spacer' });
     lines.push({ type: 'divider' });
+    lines.push({ type: 'spacer' });
     lines.push({ type: 'columns', left: 'Subtotal', right: `Ar ${order.subtotal.toFixed(2)}` });
     if (order.deliveryCost > 0)
       lines.push({ type: 'columns', left: 'Delivery', right: `Ar ${order.deliveryCost.toFixed(2)}` });
@@ -130,7 +135,7 @@ export default function Home() {
       return;
     }
     try {
-      await serialPrint(buildReceiptLines(order), { paperWidth: 48, cutAfter: true });
+      await serialPrint(buildReceiptLines(order), { paperWidth: 42, cutAfter: true });
     } catch (error) {
       console.error('Serial print error:', error);
       alert('Could not print. Tap Connect Printer first, then try again.');
