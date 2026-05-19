@@ -97,34 +97,38 @@ export default function Home() {
   }
 
   function buildReceiptLines(order: Order): ReceiptLine[] {
-    const field = (label: string, value: string) => `${label}:`.padEnd(14) + value;
+    const money = (value: number) => `${value.toFixed(2)} Ar`;
     const lines: ReceiptLine[] = [
-      { text: 'Mbala&Itsaka', align: 'center', bold: true, doubleWidth: true },
       { type: 'spacer' },
-      { text: `Receipt #${order.id}`, align: 'center', bold: true },
-      { text: field('Date', order.date), align: 'left' },
-      { text: field('Customer', order.customer), align: 'left' },
+      { text: 'MBALA&ITSAKA', align: 'center', bold: true, doubleWidth: true },
+      { type: 'spacer' },
+      { text: 'Nif  : 0013245476524005', align: 'center' },
+      { text: 'Stat : 00103241106454875', align: 'center' },
+      { type: 'spacer' },
+      { type: 'divider' },
+      { text: 'Date:'.padEnd(14) + order.date, align: 'left' },
+      { text: 'Customer:'.padEnd(14) + order.customer, align: 'left' },
+      { text: 'Phone:'.padEnd(14) + (order.phone || ''), align: 'left' },
+      { text: 'Address:'.padEnd(14) + (order.address || ''), align: 'left' },
+      { type: 'divider' },
+      { text: 'Receipt: ' + order.id, align: 'left' },
+      { type: 'divider' },
+      { type: 'spacer' },
     ];
-    if (order.phone)   lines.push({ text: field('Phone', order.phone), align: 'left' });
-    if (order.address) lines.push({ text: field('Address', order.address), align: 'left' });
-    lines.push({ type: 'spacer' });
-    lines.push({ type: 'divider' });
-    lines.push({ type: 'spacer' });
     order.items.forEach(item => {
-      lines.push({ type: 'columns', left: `${item.productName} x${item.quantity}`, right: `Ar ${item.total.toFixed(2)}` });
+      lines.push({ text: item.productName, align: 'left', bold: true });
+      lines.push({ type: 'columns', left: `  x${item.quantity} @ ${money(item.price)}`, right: money(item.quantity * item.price) });
+      lines.push({ type: 'spacer' });
     });
-    lines.push({ type: 'spacer' });
+    lines.push({ type: 'divider' });
+    lines.push({ type: 'columns', left: 'Subtotal', right: money(order.subtotal) });
+    lines.push({ type: 'divider' });
+    lines.push({ type: 'columns', left: 'TOTAL', right: money(order.total), bold: true });
     lines.push({ type: 'divider' });
     lines.push({ type: 'spacer' });
-    lines.push({ type: 'columns', left: 'Subtotal', right: `Ar ${order.subtotal.toFixed(2)}` });
-    if (order.deliveryCost > 0)
-      lines.push({ type: 'columns', left: 'Delivery', right: `Ar ${order.deliveryCost.toFixed(2)}` });
-    if (order.remise > 0)
-      lines.push({ type: 'columns', left: 'Remise',   right: `-Ar ${order.remise.toFixed(2)}` });
-    lines.push({ type: 'divider' });
-    lines.push({ type: 'columns', left: 'TOTAL', right: `Ar ${order.total.toFixed(2)}`, bold: true });
+    lines.push({ text: 'Misaotra nanjifa !', align: 'center', bold: true });
     lines.push({ type: 'spacer' });
-    lines.push({ text: 'misaotra nanjifa', align: 'center', feed: 1 });
+    lines.push({ type: 'spacer' });
     return lines;
   }
 
@@ -135,7 +139,7 @@ export default function Home() {
       return;
     }
     try {
-      await serialPrint(buildReceiptLines(order), { paperWidth: 42, cutAfter: true });
+      await serialPrint(buildReceiptLines(order), { paperWidth: 46, cutAfter: true });
     } catch (error) {
       console.error('Serial print error:', error);
       alert('Could not print. Tap Connect Printer first, then try again.');
