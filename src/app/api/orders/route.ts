@@ -23,6 +23,9 @@ export async function POST(request: NextRequest) {
     const order = await request.json() as Omit<Order, "id">;
     const supabase = createAdminClient();
 
+    const { count } = await supabase.from("orders").select("*", { count: "exact", head: true });
+    const receiptNumber = `ORD#${String((count || 0) + 1).padStart(3, "0")}`;
+
     const { data: createdOrder, error: orderError } = await supabase.from("orders").insert({
       customer: order.customer,
       phone: order.phone || null,
@@ -32,7 +35,8 @@ export async function POST(request: NextRequest) {
       remise: order.remise || 0,
       total: order.total,
       status: "confirmed",
-      order_date: new Date().toISOString().split("T")[0],
+      order_date: order.date,
+      receipt_number: receiptNumber,
     }).select("*").single();
 
     if (orderError) return NextResponse.json({ error: orderError.message }, { status: 500 });

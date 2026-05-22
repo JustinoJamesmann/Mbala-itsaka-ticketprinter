@@ -11,6 +11,7 @@ const CMD: Record<string, number[]> = {
   BOLD_ON:       [ESC, 0x45, 0x01],
   BOLD_OFF:      [ESC, 0x45, 0x00],
   DOUBLE_WIDTH:  [ESC, 0x21, 0x20],
+  DOUBLE_WH:     [ESC, 0x21, 0x30],
   NORMAL_SIZE:   [ESC, 0x21, 0x00],
   UNDERLINE_ON:  [ESC, 0x2D, 0x01],
   UNDERLINE_OFF: [ESC, 0x2D, 0x00],
@@ -33,6 +34,7 @@ export type ReceiptLine =
       align?: 'left' | 'center' | 'right';
       bold?: boolean;
       doubleWidth?: boolean;
+      doubleHeight?: boolean;
       underline?: boolean;
       feed?: number;
     };
@@ -191,11 +193,21 @@ export async function printReceipt(lines: ReceiptLine[], options: PrintOptions =
       align === 'right'  ? CMD.ALIGN_RIGHT  : CMD.ALIGN_LEFT
     );
     push(line.bold        ? CMD.BOLD_ON        : CMD.BOLD_OFF);
-    push(line.doubleWidth ? CMD.DOUBLE_WIDTH   : CMD.NORMAL_SIZE);
+    if (line.doubleWidth && line.doubleHeight) {
+      push(CMD.DOUBLE_WH);
+    } else if (line.doubleWidth) {
+      push(CMD.DOUBLE_WIDTH);
+    } else {
+      push(CMD.NORMAL_SIZE);
+    }
     push(line.underline   ? CMD.UNDERLINE_ON   : CMD.UNDERLINE_OFF);
 
     pushText(String(line.text || ''));
     push(LF);
+
+    if (line.doubleWidth && line.doubleHeight) {
+      push(CMD.NORMAL_SIZE);
+    }
 
     if (line.feed && line.feed > 0) {
       for (let i = 0; i < line.feed; i++) push(LF);

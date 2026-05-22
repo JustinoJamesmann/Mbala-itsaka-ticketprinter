@@ -73,7 +73,7 @@ export default function CreateOrderForm({ onSave, onClose }: { onSave: (o: Omit<
           </div>
 
           <div>
-            <label className="text-xs text-[#8fa3ad]/95 mb-1 block">live date</label>
+            <label className="text-xs text-[#8fa3ad]/95 mb-1 block">Date de livraison</label>
             <Calendar value={orderDate} onChange={setOrderDate} />
           </div>
 

@@ -100,10 +100,10 @@ export default function Home() {
     const money = (value: number) => `${value.toFixed(2)} Ar`;
     const lines: ReceiptLine[] = [
       { type: 'spacer' },
-      { text: 'MBALA&ITSAKA', align: 'center', bold: true, doubleWidth: true },
+      { text: 'MBALA&ITSAKA', align: 'center', bold: true, doubleWidth: true, doubleHeight: true },
       { type: 'spacer' },
-      { text: 'Nif  : 0013245476524005', align: 'center' },
-      { text: 'Stat : 00103241106454875', align: 'center' },
+      { text: 'Nif  : 5019196096', align: 'center' },
+      { text: 'Stat : 47912 11 2025 0 03311', align: 'center' },
       { type: 'spacer' },
       { type: 'divider' },
       { text: 'Date:'.padEnd(14) + order.date, align: 'left' },

@@ -2,7 +2,7 @@ import { Order } from "../app/types";
 
 export function mapOrder(row: any): Order {
   return {
-    id: row.id,
+    id: row.receipt_number || row.id,
     customer: row.customer,
     phone: row.phone || undefined,
     address: row.address || undefined,
