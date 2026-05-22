@@ -23,9 +23,13 @@ CREATE TABLE IF NOT EXISTS orders (
   total DECIMAL(10, 2) NOT NULL DEFAULT 0,
   status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'confirmed', 'shipped', 'delivered', 'cancelled')),
   order_date DATE NOT NULL DEFAULT CURRENT_DATE,
+  receipt_number TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Add receipt_number column if it doesn't exist (for existing tables)
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS receipt_number TEXT;
 
 -- Order items table
 CREATE TABLE IF NOT EXISTS order_items (
