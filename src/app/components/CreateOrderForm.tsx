@@ -2,7 +2,6 @@
 
 import { Order } from "../types";
 import { useState } from "react";
-import Calendar from "./Calendar";
 
 export default function CreateOrderForm({ onSave, onClose }: { onSave: (o: Omit<Order, "id">) => void; onClose: () => void }) {
   const [customer, setCustomer] = useState("");
@@ -74,7 +73,13 @@ export default function CreateOrderForm({ onSave, onClose }: { onSave: (o: Omit<
 
           <div>
             <label className="text-xs text-[#8fa3ad]/95 mb-1 block">Date de livraison</label>
-            <Calendar value={orderDate} onChange={setOrderDate} />
+            <input
+              type="date"
+              value={orderDate}
+              min={new Date().toISOString().split("T")[0]}
+              onChange={(e) => setOrderDate(e.target.value)}
+              className="w-full py-3 px-4"
+            />
           </div>
 
           {/* Add items manually */}
