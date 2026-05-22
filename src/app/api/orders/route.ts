@@ -27,6 +27,7 @@ export async function POST(request: NextRequest) {
     const receiptNumber = `ORD#${String((count || 0) + 1).padStart(3, "0")}`;
 
     const { data: createdOrder, error: orderError } = await supabase.from("orders").insert({
+      receipt_number: receiptNumber,
       customer: order.customer,
       phone: order.phone || null,
       address: order.address || null,
@@ -36,7 +37,6 @@ export async function POST(request: NextRequest) {
       total: order.total,
       status: "confirmed",
       order_date: order.date,
-      receipt_number: receiptNumber,
     }).select("*").single();
 
     if (orderError) return NextResponse.json({ error: orderError.message }, { status: 500 });
