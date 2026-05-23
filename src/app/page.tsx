@@ -30,9 +30,18 @@ function HomeContent() {
   useEffect(() => {
     async function bootstrap() {
       try {
+        // Check localStorage for persisted session
+        const saved = localStorage.getItem('session_user');
+        if (saved) {
+          setCurrentUser(JSON.parse(saved));
+        }
+
         const response = await fetch("/api/bootstrap");
         const data = await response.json();
-        setCurrentUser(data.user);
+        if (data.user) {
+          setCurrentUser(data.user);
+          localStorage.setItem('session_user', JSON.stringify(data.user));
+        }
         setOrders(data.orders || []);
       } finally {
         setLoaded(true);
@@ -69,6 +78,7 @@ function HomeContent() {
     const data = await response.json();
     if (response.ok && data.user) {
       setCurrentUser(data.user);
+      localStorage.setItem('session_user', JSON.stringify(data.user));
       setLoginError("");
       setLoginUsername("");
       setLoginPassword("");
@@ -80,6 +90,7 @@ function HomeContent() {
 
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
+    localStorage.removeItem('session_user');
     setCurrentUser(null);
     setOrders([]);
   }
