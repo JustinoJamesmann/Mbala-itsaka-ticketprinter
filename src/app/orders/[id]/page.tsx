@@ -27,23 +27,34 @@ interface Order {
   order_items: OrderItem[];
 }
 
-export default function OrderDetailPage({ params }: { params: { id: string } }) {
+export default function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set());
+  const [orderId, setOrderId] = useState<string>("");
 
   useEffect(() => {
-    loadOrder();
-  }, [params.id]);
+    async function init() {
+      const resolvedParams = await params;
+      console.log('Order ID received:', resolvedParams.id);
+      setOrderId(resolvedParams.id);
+      loadOrder(resolvedParams.id);
+    }
+    init();
+  }, [params]);
 
-  async function loadOrder() {
+  async function loadOrder(id: string) {
     const supabase = createClient();
+    console.log('Fetching order with id:', id);
     const { data, error } = await supabase
       .from("orders")
       .select("*, order_items(*)")
-      .eq("id", params.id)
-      .single();
+      .eq("id", id)
+      .maybeSingle();
+
+    console.log('Order data:', data);
+    console.log('Order error:', error);
 
     if (error) {
       console.error("Error loading order:", error);
@@ -83,14 +94,14 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
     const { error: orderError } = await supabase
       .from("orders")
       .update({ subtotal: newSubtotal, total: newOrderTotal })
-      .eq("id", params.id);
+      .eq("id", orderId);
 
     if (orderError) {
       console.error("Error updating order:", orderError);
       return;
     }
 
-    await loadOrder();
+    await loadOrder(orderId);
   }
 
   async function cancelItem(itemId: string, itemName: string) {
@@ -111,9 +122,9 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
     await supabase
       .from("orders")
       .update({ subtotal: newSubtotal, total: newOrderTotal })
-      .eq("id", params.id);
+      .eq("id", orderId);
 
-    await loadOrder();
+    await loadOrder(orderId);
   }
 
   async function cancelSelectedItems() {
@@ -135,24 +146,24 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
     await supabase
       .from("orders")
       .update({ subtotal: newSubtotal, total: newOrderTotal })
-      .eq("id", params.id);
+      .eq("id", orderId);
 
     setSelectedItemIds(new Set());
-    await loadOrder();
+    await loadOrder(orderId);
   }
 
   async function cancelEntireOrder() {
     if (!confirm(`Cancel entire order #${order?.id.slice(0, 8)}...?`)) return;
 
     const supabase = createClient();
-    const { error } = await supabase.from("orders").update({ status: "cancelled" }).eq("id", params.id);
+    const { error } = await supabase.from("orders").update({ status: "cancelled" }).eq("id", orderId);
 
     if (error) {
       console.error("Error cancelling order:", error);
       return;
     }
 
-    await loadOrder();
+    await loadOrder(orderId);
   }
 
   if (loading) {
