@@ -71,11 +71,26 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const { id, status } = await request.json();
+    const body = await request.json();
     const supabase = createAdminClient();
-    const { data, error } = await supabase.from("orders").update({ status }).eq("id", id).select("*, order_items(*)").single();
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json({ order: mapOrder(data) });
+
+    // Handle status update
+    if (body.status !== undefined) {
+      const { id, status } = body;
+      const { data, error } = await supabase.from("orders").update({ status }).eq("id", id).select("*, order_items(*)").single();
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ order: mapOrder(data) });
+    }
+
+    // Handle subtotal/total update after item cancellation
+    if (body.subtotal !== undefined && body.total !== undefined) {
+      const { id, subtotal, total } = body;
+      const { data, error } = await supabase.from("orders").update({ subtotal, total }).eq("id", id).select("*, order_items(*)").single();
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ order: mapOrder(data) });
+    }
+
+    return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   } catch (error) {
     console.error("Orders PUT error:", error);
     return NextResponse.json({ error: "Failed to update order" }, { status: 500 });

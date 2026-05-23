@@ -229,7 +229,7 @@ export default function Home() {
       {/* Floating logout */}
       <button
         onClick={handleLogout}
-        className="fixed top-3 right-3 z-50 p-2.5 rounded-xl bg-[#162126] border border-[#1f2a30] text-[#8fa3ad] hover:text-red-400 hover:border-red-400/20 transition-colors cursor-pointer"
+        className="fixed top-3 right-3 z-50 p-2.5 rounded-xl bg-[#162126] border border-[#1f2a30] text-[#8fa3ad] hover:text-red-400 hover:border-red-400/20 transition-colors cursor-pointer mr-4"
         title="Sign Out"
         style={{ boxShadow: '0 2px 8px rgba(127,32,32,0.10)' }}
       >
