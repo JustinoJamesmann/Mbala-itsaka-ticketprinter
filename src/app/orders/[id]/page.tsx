@@ -187,8 +187,9 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
       {/* Header */}
       <div className="flex items-center gap-3 mb-4">
         <button
-          onClick={() => router.back()}
+          onClick={() => router.push('/')}
           className="p-2 rounded-xl bg-[#162126] border border-[#1f2a30] text-[#8fa3ad] hover:text-[#e6f1f5] transition-colors cursor-pointer"
+          title="Back to Report"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -197,8 +198,8 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
         <div>
           <h1 className="text-xl font-bold text-[#e6f1f5]">Order Details</h1>
           <div className={`text-xs px-2 py-0.5 rounded-full inline-block capitalize ${
-            order.status === 'confirmed' ? 'bg-green-500/20 text-green-400' : 
-            order.status === 'cancelled' ? 'bg-red-500/20 text-red-400' : 
+            order.status === 'confirmed' ? 'bg-green-500/20 text-green-400' :
+            order.status === 'cancelled' ? 'bg-red-500/20 text-red-400' :
             'bg-[#162126] text-[#8fa3ad]'
           }`}>
             {order.status}
