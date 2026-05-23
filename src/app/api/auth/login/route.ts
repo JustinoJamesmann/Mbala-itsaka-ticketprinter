@@ -28,19 +28,35 @@ export async function POST(request: NextRequest) {
   }
 
   const supabase = await createClient();
-  const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-    email: normalizeLoginEmail(username),
+  const email = normalizeLoginEmail(username);
+
+  // Try to sign in with Supabase Auth
+  let { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+    email,
     password,
   });
 
+  // If sign in fails, try to create the user in Supabase Auth
   if (authError) {
-    // If Supabase Auth fails, we'll still return the user data
-    // This allows the app to work even without Supabase Auth
-    console.log("Supabase Auth failed, using custom auth:", authError.message);
+    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+      email,
+      password,
+    });
+
+    if (signUpError) {
+      console.log("Supabase Auth failed:", signUpError.message);
+    } else {
+      // If signup succeeded, try signing in again
+      const { data: signInData } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      authData = signInData;
+    }
   }
 
-  return NextResponse.json({ 
+  return NextResponse.json({
     user: { id: user.id, username: user.username, role: user.role },
-    session: authData?.session 
+    session: authData?.session
   });
 }
