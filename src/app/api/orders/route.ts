@@ -40,6 +40,11 @@ export async function POST(request: NextRequest) {
       p_order_date: order.date,
     });
 
+    if (orderError) {
+      console.error("RPC insert error:", orderError);
+      return NextResponse.json({ error: orderError.message, details: orderError }, { status: 500 });
+    }
+
     const { error: itemsError } = await supabase.from("order_items").insert(order.items.map(item => ({
       order_id: createdOrder.id,
       product_id: item.productId || crypto.randomUUID(),
@@ -49,7 +54,10 @@ export async function POST(request: NextRequest) {
       total: item.total,
     })));
 
-    if (itemsError) return NextResponse.json({ error: itemsError.message }, { status: 500 });
+    if (itemsError) {
+      console.error("Items insert error:", itemsError);
+      return NextResponse.json({ error: itemsError.message, details: itemsError }, { status: 500 });
+    }
 
     const { data: savedOrder, error: savedOrderError } = await supabase
       .from("orders")
