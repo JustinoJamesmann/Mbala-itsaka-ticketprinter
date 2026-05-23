@@ -3,7 +3,8 @@
 import { Order, Page, User } from "./types";
 import Report from "./components/Report";
 import CreateOrderForm from "./components/CreateOrderForm";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   autoConnect,
   connectPrinter,
@@ -13,7 +14,8 @@ import {
   type ReceiptLine,
 } from "@/lib/printer";
 
-export default function Home() {
+function HomeContent() {
+  const searchParams = useSearchParams();
   const [page, setPage] = useState<Page>("newOrder");
   const [orders, setOrders] = useState<Order[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -41,6 +43,13 @@ export default function Home() {
     autoConnect();
     return () => unsubscribe();
   }, []);
+
+  useEffect(() => {
+    const pageParam = searchParams.get("page");
+    if (pageParam === "report") {
+      setPage("report");
+    }
+  }, [searchParams]);
 
   async function refreshData() {
     setDataLoading(true);
@@ -319,5 +328,13 @@ export default function Home() {
         </button>
       </nav>
     </div>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={<div style={{ background: '#0d1518', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8fa3ad' }}>Loading...</div>}>
+      <HomeContent />
+    </Suspense>
   );
 }
