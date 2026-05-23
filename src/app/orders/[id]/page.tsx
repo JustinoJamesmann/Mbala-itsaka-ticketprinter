@@ -187,7 +187,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
       {/* Header */}
       <div className="flex items-center gap-3 mb-4">
         <button
-          onClick={() => router.push('/?page=report')}
+          onClick={() => window.history.back()}
           className="p-2 rounded-xl bg-[#162126] border border-[#1f2a30] text-[#8fa3ad] hover:text-[#e6f1f5] transition-colors cursor-pointer"
           title="Back to Report"
         >
