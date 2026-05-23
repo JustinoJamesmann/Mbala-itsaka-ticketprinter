@@ -4,8 +4,23 @@ import { Order, User } from "../types";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Calendar from "./Calendar";
+import { type PrinterStatus } from "@/lib/printer";
 
-export default function Report({ orders, currentUser, onRefresh }: { orders: Order[]; currentUser: User; onRefresh?: () => void }) {
+export default function Report({
+  orders,
+  currentUser,
+  onRefresh,
+  printerStatus,
+  onConnectPrinter,
+  onLogout
+}: {
+  orders: Order[];
+  currentUser: User;
+  onRefresh?: () => void;
+  printerStatus: PrinterStatus;
+  onConnectPrinter: () => void;
+  onLogout: () => void;
+}) {
   const router = useRouter();
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
   const [showAll, setShowAll] = useState(false);
@@ -78,12 +93,12 @@ export default function Report({ orders, currentUser, onRefresh }: { orders: Ord
     <div className="animate-fade-in-up space-y-4 pt-2">
 
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between gap-3">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold gradient-text">Report</h1>
           <p className="text-[#8fa3ad]/95 text-sm mt-0.5">Order history</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           {selectedOrderIds.size > 0 && (
             <>
               <button
@@ -100,6 +115,19 @@ export default function Report({ orders, currentUser, onRefresh }: { orders: Ord
               </button>
             </>
           )}
+          <button
+            type="button"
+            onClick={onConnectPrinter}
+            className={`px-3 py-2 rounded-xl border text-xs font-medium transition-colors cursor-pointer shrink-0 whitespace-nowrap ${
+              printerStatus === "connected"
+                ? "bg-neon-green/10 border-neon-green/40 text-neon-green"
+                : printerStatus === "reconnecting"
+                  ? "bg-neon-purple/10 border-neon-purple/40 text-neon-purple"
+                  : "bg-[#162126] border-[#1f2a30] text-[#8fa3ad]"
+            }`}
+          >
+            {printerStatus === "connected" ? "Printer ✓" : printerStatus === "reconnecting" ? "Connecting..." : "Connect Printer"}
+          </button>
           {onRefresh && (
             <button
               onClick={handleRefresh}
@@ -112,6 +140,15 @@ export default function Report({ orders, currentUser, onRefresh }: { orders: Ord
               </svg>
             </button>
           )}
+          <button
+            onClick={onLogout}
+            className="p-2.5 rounded-xl bg-[#162126] border border-[#1f2a30] text-[#8fa3ad] hover:text-red-400 hover:border-red-400/20 transition-colors cursor-pointer"
+            title="Sign Out"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+          </button>
         </div>
       </div>
 

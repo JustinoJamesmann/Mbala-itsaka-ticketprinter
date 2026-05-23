@@ -246,18 +246,6 @@ function HomeContent() {
   return (
     <div className="min-h-screen flex flex-col" style={{ background: '#0d1518' }}>
 
-      {/* Floating logout */}
-      <button
-        onClick={handleLogout}
-        className="fixed top-3 right-3 z-50 p-2.5 rounded-xl bg-[#162126] border border-[#1f2a30] text-[#8fa3ad] hover:text-red-400 hover:border-red-400/20 transition-colors cursor-pointer mr-4"
-        title="Sign Out"
-        style={{ boxShadow: '0 2px 8px rgba(127,32,32,0.10)' }}
-      >
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-        </svg>
-      </button>
-
       {/* Main content */}
       <main className="flex-1 w-full p-3 sm:p-4 pb-24 overflow-auto min-h-screen">
         {dataLoading && (
@@ -272,19 +260,30 @@ function HomeContent() {
                 <h1 className="text-xl sm:text-2xl font-bold gradient-text">New Order</h1>
                 <p className="text-[#8fa3ad]/95 text-sm mt-1">Create a ticket sale</p>
               </div>
-              <button
-                type="button"
-                onClick={handleConnectPrinter}
-                className={`px-3 py-2 rounded-xl border text-xs font-medium transition-colors cursor-pointer shrink-0 ${
-                  printerStatus === "connected"
-                    ? "bg-neon-green/10 border-neon-green/40 text-neon-green"
-                    : printerStatus === "reconnecting"
-                      ? "bg-neon-purple/10 border-neon-purple/40 text-neon-purple"
-                      : "bg-[#162126] border-[#1f2a30] text-[#8fa3ad]"
-                }`}
-              >
-                {printerStatus === "connected" ? "Printer ✓" : printerStatus === "reconnecting" ? "Connecting..." : "Connect Printer"}
-              </button>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleConnectPrinter}
+                  className={`px-3 py-2 rounded-xl border text-xs font-medium transition-colors cursor-pointer shrink-0 whitespace-nowrap ${
+                    printerStatus === "connected"
+                      ? "bg-neon-green/10 border-neon-green/40 text-neon-green"
+                      : printerStatus === "reconnecting"
+                        ? "bg-neon-purple/10 border-neon-purple/40 text-neon-purple"
+                        : "bg-[#162126] border-[#1f2a30] text-[#8fa3ad]"
+                  }`}
+                >
+                  {printerStatus === "connected" ? "Printer ✓" : printerStatus === "reconnecting" ? "Connecting..." : "Connect Printer"}
+                </button>
+                <button
+                  onClick={handleLogout}
+                  className="p-2.5 rounded-xl bg-[#162126] border border-[#1f2a30] text-[#8fa3ad] hover:text-red-400 hover:border-red-400/20 transition-colors cursor-pointer"
+                  title="Sign Out"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                  </svg>
+                </button>
+              </div>
             </div>
             <CreateOrderForm
               onSave={async (order) => {
@@ -307,7 +306,7 @@ function HomeContent() {
             />
           </div>
         )}
-        {page === "report" && <Report orders={orders} currentUser={currentUser} onRefresh={refreshData} />}
+        {page === "report" && <Report orders={orders} currentUser={currentUser} onRefresh={refreshData} printerStatus={printerStatus} onConnectPrinter={handleConnectPrinter} onLogout={handleLogout} />}
       </main>
 
       {/* Bottom tab bar */}
