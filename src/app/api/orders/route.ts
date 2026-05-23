@@ -23,11 +23,7 @@ export async function POST(request: NextRequest) {
     const order = await request.json() as Omit<Order, "id">;
     const supabase = createAdminClient();
 
-    const { count } = await supabase.from("orders").select("*", { count: "exact", head: true });
-    const receiptNumber = `ORD#${String((count || 0) + 1).padStart(3, "0")}`;
-
     const { data: createdOrder, error: orderError } = await supabase.from("orders").insert({
-      receipt_number: receiptNumber,
       customer: order.customer,
       phone: order.phone || null,
       address: order.address || null,
