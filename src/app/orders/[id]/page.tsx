@@ -271,7 +271,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   }
 
   return (
-    <div className="min-h-screen flex flex-col p-3 sm:p-4 pb-8" style={{ background: '#0d1518' }}>
+    <div className="min-h-screen flex flex-col p-3 sm:p-4 pb-32" style={{ background: '#0d1518' }}>
       {/* Header */}
       <div className="flex items-start justify-between gap-3 mb-4">
         <div>

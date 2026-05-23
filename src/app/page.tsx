@@ -247,7 +247,7 @@ function HomeContent() {
     <div className="min-h-screen flex flex-col" style={{ background: '#0d1518' }}>
 
       {/* Main content */}
-      <main className="flex-1 w-full p-3 sm:p-4 pb-24 overflow-auto min-h-screen">
+      <main className="flex-1 w-full p-3 sm:p-4 pb-32 overflow-auto min-h-screen">
         {dataLoading && (
           <div className="fixed top-3 right-14 z-40 glass px-3 py-2 text-xs text-[#e6f1f5]/80">
             Loading...
