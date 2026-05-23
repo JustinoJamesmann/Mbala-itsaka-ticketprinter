@@ -4,11 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
-  autoConnect,
-  connectPrinter,
   printReceipt as serialPrint,
-  onStatusChange,
-  type PrinterStatus,
   type ReceiptLine,
 } from "@/lib/printer";
 
@@ -39,9 +35,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   const router = useRouter();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
-  const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set());
   const [orderId, setOrderId] = useState<string>("");
-  const [printerStatus, setPrinterStatus] = useState<PrinterStatus>("disconnected");
 
   // Editable state
   const [customer, setCustomer] = useState("");
@@ -50,7 +44,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   const [orderDate, setOrderDate] = useState("");
   const [deliveryCost, setDeliveryCost] = useState(0);
   const [remise, setRemise] = useState(0);
-  const [items, setItems] = useState<Array<{ id: string; productName: string; quantity: number; price: number; total: number }>>([]);
+  const [items, setItems] = useState<Array<{ id: string; productName: string; quantity: number; price: number; total: number; isNew?: boolean }>>([]);
 
   useEffect(() => {
     async function init() {
@@ -59,9 +53,6 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
       loadOrder(resolvedParams.id);
     }
     init();
-    const unsubscribe = onStatusChange(setPrinterStatus);
-    autoConnect();
-    return () => unsubscribe();
   }, [params]);
 
   async function loadOrder(id: string) {
@@ -113,11 +104,15 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
     setItems(items.filter((_, i) => i !== index));
   }
 
-  function handleCancelSelected() {
-    if (selectedItemIds.size === 0) return;
-    if (!confirm(`Cancel ${selectedItemIds.size} selected items?`)) return;
-    setItems(items.filter(item => !selectedItemIds.has(item.id)));
-    setSelectedItemIds(new Set());
+  function addItem() {
+    setItems([...items, {
+      id: crypto.randomUUID(),
+      productName: '',
+      quantity: 1,
+      price: 0,
+      total: 0,
+      isNew: true,
+    }]);
   }
 
   async function handleSaveChanges() {
@@ -146,8 +141,8 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
       return;
     }
 
-    // Update existing items and delete removed ones
-    const existingItemIds = items.map(i => i.id);
+    // Delete removed items (not new ones)
+    const existingItemIds = items.filter(i => !i.isNew).map(i => i.id);
     const { data: currentItems } = await supabase.from("order_items").select("id").eq("order_id", orderId);
     const currentItemIds = currentItems?.map((i: any) => i.id) || [];
     const toDelete = currentItemIds.filter((id: string) => !existingItemIds.includes(id));
@@ -156,9 +151,9 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
       await supabase.from("order_items").delete().in("id", toDelete);
     }
 
-    // Update each item
+    // Update existing items
     for (const item of items) {
-      if (item.id) {
+      if (!item.isNew && item.id) {
         await supabase
           .from("order_items")
           .update({
@@ -168,6 +163,20 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
             total: item.total,
           })
           .eq("id", item.id);
+      }
+    }
+
+    // Insert new items
+    for (const item of items) {
+      if (item.isNew) {
+        await supabase.from("order_items").insert({
+          order_id: orderId,
+          product_id: crypto.randomUUID(),
+          product_name: item.productName,
+          quantity: item.quantity,
+          price: item.price,
+          total: item.quantity * item.price,
+        });
       }
     }
 
@@ -231,13 +240,6 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
     }
   }
 
-  async function handleConnectPrinter() {
-    try {
-      await connectPrinter();
-    } catch (error: any) {
-      alert(error.message || 'Could not connect to printer. Use Chrome on Android after pairing the printer in Android Bluetooth settings.');
-    }
-  }
 
   async function handleCancelOrder() {
     if (!confirm(`Cancel entire order #${orderId.slice(0, 8)}...?`)) return;
@@ -273,55 +275,46 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   }
 
   return (
-    <div className="min-h-screen flex flex-col p-3 sm:p-4 pb-32" style={{ background: '#0d1518' }}>
+    <div className="min-h-screen flex flex-col p-3 sm:p-4" style={{ background: '#0d1518', minHeight: '100dvh', paddingBottom: '160px', overflowY: 'auto' }}>
       {/* Header */}
-      <div className="flex items-start justify-between gap-3 mb-4">
-        <div>
+      <div className="flex items-center justify-between mb-4">
+        <button
+          onClick={() => router.push('/?page=report')}
+          className="p-2 rounded-xl bg-[#162126] border border-[#1f2a30] text-[#8fa3ad] hover:text-[#e6f1f5] transition-colors cursor-pointer"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+        <div className="flex items-center gap-3">
           <h1 className="text-xl sm:text-2xl font-bold gradient-text">Edit Order</h1>
-          <p className="text-[#8fa3ad]/95 text-sm mt-1">ORD#{orderId.slice(0, 8)}</p>
+          <p className="text-[#8fa3ad]/95 text-sm">ORD#{orderId.slice(0, 8)}</p>
         </div>
-        <div className="flex items-center gap-2">
-          <div className={`text-xs px-2 py-0.5 rounded-full capitalize ${
-            order.status === 'confirmed' ? 'bg-green-500/20 text-green-400' :
-            order.status === 'cancelled' ? 'bg-red-500/20 text-red-400' :
-            'bg-[#162126] text-[#8fa3ad]'
-          }`}>
-            {order.status}
-          </div>
-          <button
-            type="button"
-            onClick={handleConnectPrinter}
-            className={`px-3 py-2 rounded-xl border text-xs font-medium transition-colors cursor-pointer shrink-0 ${
-              printerStatus === "connected"
-                ? "bg-neon-green/10 border-neon-green/40 text-neon-green"
-                : printerStatus === "reconnecting"
-                  ? "bg-neon-purple/10 border-neon-purple/40 text-neon-purple"
-                  : "bg-[#162126] border-[#1f2a30] text-[#8fa3ad]"
-            }`}
-          >
-            {printerStatus === "connected" ? "Printer ✓" : printerStatus === "reconnecting" ? "Connecting..." : "Connect Printer"}
-          </button>
+        <div className={`text-xs px-2 py-0.5 rounded-full capitalize ${
+          order.status === 'confirmed' ? 'bg-green-500/20 text-green-400' :
+          order.status === 'cancelled' ? 'bg-red-500/20 text-red-400' :
+          'bg-[#162126] text-[#8fa3ad]'
+        }`}>
+          {order.status}
         </div>
       </div>
 
-      <div className="glass p-4 sm:p-6 lg:p-8 neon-glow-pink bg-[#0a0a1a] space-y-3 sm:space-y-4">
+      {/* Info Card */}
+      <div className="glass p-4 rounded-2xl mb-4 space-y-3">
         <div>
-          <label className="text-xs text-[#8fa3ad]/95 mb-1 block">Customer Name</label>
+          <label className="text-xs text-[#8fa3ad]/95 mb-1 block">Customer</label>
           <input type="text" value={customer} onChange={(e) => setCustomer(e.target.value)} className="w-full py-3 px-4" />
         </div>
-
         <div>
-          <label className="text-xs text-[#8fa3ad]/95 mb-1 block">Phone Number (Optional)</label>
+          <label className="text-xs text-[#8fa3ad]/95 mb-1 block">Phone</label>
           <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full py-3 px-4" />
         </div>
-
         <div>
-          <label className="text-xs text-[#8fa3ad]/95 mb-1 block">Address (Optional)</label>
+          <label className="text-xs text-[#8fa3ad]/95 mb-1 block">Address</label>
           <input type="text" value={address} onChange={(e) => setAddress(e.target.value)} className="w-full py-3 px-4" />
         </div>
-
         <div>
-          <label className="text-xs text-[#8fa3ad]/95 mb-1 block">Date de livraison</label>
+          <label className="text-xs text-[#8fa3ad]/95 mb-1 block">Date</label>
           <input
             type="date"
             value={orderDate}
@@ -329,136 +322,99 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
             className="w-full py-3 px-4"
           />
         </div>
+      </div>
 
-        {/* Items */}
-        <div className="glass p-4 bg-[#0d1518]">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={items.length > 0 && selectedItemIds.size === items.length}
-                onChange={(e) => {
-                  if (e.target.checked) {
-                    setSelectedItemIds(new Set(items.map(i => i.id)));
-                  } else {
-                    setSelectedItemIds(new Set());
-                  }
-                }}
-                className="w-3 h-3 rounded border border-white/50 bg-transparent cursor-pointer"
-              />
-              <label className="text-xs text-[#8fa3ad]/95">Items</label>
-            </div>
-            {selectedItemIds.size > 0 && (
-              <button
-                onClick={handleCancelSelected}
-                className="px-3 py-1.5 rounded-lg text-xs font-medium bg-red-500/20 border border-red-500/40 text-red-400 hover:bg-red-500/30 transition-colors cursor-pointer"
-              >
-                Cancel Selected ({selectedItemIds.size})
-              </button>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            {items.map((item, index) => (
-              <div key={item.id} className="flex items-center gap-2 p-3 rounded-xl bg-[#0d1518] border border-[#1f2a30] w-full overflow-hidden">
-                <input
-                  type="checkbox"
-                  checked={selectedItemIds.has(item.id)}
-                  onChange={(e) => {
-                    const newSet = new Set(selectedItemIds);
-                    if (e.target.checked) {
-                      newSet.add(item.id);
-                    } else {
-                      newSet.delete(item.id);
-                    }
-                    setSelectedItemIds(newSet);
-                  }}
-                  className="w-3 h-3 rounded border border-white/50 bg-transparent cursor-pointer shrink-0"
-                />
+      {/* Items */}
+      <div className="mb-4">
+        <label className="text-xs text-[#8fa3ad]/95 mb-2 block">Items</label>
+        <div className="space-y-3">
+          {items.map((item, index) => (
+            <div key={item.id} className="glass p-4 rounded-2xl bg-[#0d1518]">
+              {/* Line 1: Name + Delete */}
+              <div className="flex items-center gap-2 mb-2">
                 <input
                   type="text"
                   value={item.productName}
                   onChange={(e) => updateItem(index, 'productName', e.target.value)}
                   className="flex-1 min-w-0 py-2 px-3 text-sm"
+                  placeholder="Item name"
                 />
+                <button
+                  type="button"
+                  onClick={() => removeItem(index)}
+                  className="text-red-400 hover:text-red-300 cursor-pointer text-lg p-1 shrink-0"
+                >
+                  ✕
+                </button>
+              </div>
+              {/* Line 2: QTY × Price = Total */}
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-[#8fa3ad]/80">QTY</span>
                 <input
                   type="number"
                   min={1}
                   value={item.quantity}
                   onChange={(e) => updateItem(index, 'quantity', e.target.value)}
-                  className="no-spinners w-16 py-2 px-3 text-sm shrink-0"
+                  className="no-spinners w-16 py-2 px-3 text-sm"
                 />
+                <span className="text-xs text-[#8fa3ad]/80">×</span>
+                <span className="text-xs text-[#8fa3ad]/80">Price</span>
                 <input
                   type="number"
                   step="0.01"
                   min={0}
                   value={item.price}
                   onChange={(e) => updateItem(index, 'price', e.target.value)}
-                  className="no-spinners w-20 py-2 px-3 text-sm shrink-0"
+                  className="no-spinners w-24 py-2 px-3 text-sm"
                 />
-                <div className="text-sm text-neon-green w-20 text-right shrink-0">Ar {item.total.toFixed(2)}</div>
-                <button type="button" onClick={() => removeItem(index)} className="text-red-400 hover:text-red-300 cursor-pointer text-lg p-1 shrink-0">✕</button>
+                <span className="text-xs text-[#8fa3ad]/80">=</span>
+                <span className="text-sm text-neon-green">Ar {item.total.toFixed(2)}</span>
               </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          <div>
-            <label className="text-xs text-[#8fa3ad]/95 mb-1 block">Delivery Cost (Optional)</label>
-            <input type="number" step="0.01" min={0} value={deliveryCost} onChange={(e) => setDeliveryCost(parseFloat(e.target.value) || 0)} placeholder="0" className="no-spinners w-full py-3 px-4" />
-          </div>
-          <div>
-            <label className="text-xs text-[#8fa3ad]/95 mb-1 block">Remise/Discount (Optional)</label>
-            <input type="number" step="0.01" min={0} value={remise} onChange={(e) => setRemise(parseFloat(e.target.value) || 0)} placeholder="0" className="no-spinners w-full py-3 px-4" />
-          </div>
-        </div>
-
-        {/* Summary */}
-        {items.length > 0 && (
-          <div className="glass p-4 bg-[#0d1518]">
-            <div className="flex justify-between text-sm mb-1">
-              <span className="text-[#e6f1f5]/90">Subtotal:</span>
-              <span className="text-[#e6f1f5]/90">Ar {subtotal.toFixed(2)}</span>
             </div>
-            {deliveryCost > 0 && (
-              <div className="flex justify-between text-sm mb-1">
-                <span className="text-[#e6f1f5]/90">Delivery:</span>
-                <span className="text-[#e6f1f5]/90">Ar {deliveryCost.toFixed(2)}</span>
-              </div>
-            )}
-            {remise > 0 && (
-              <div className="flex justify-between text-sm mb-1">
-                <span className="text-[#e6f1f5]/90">Remise:</span>
-                <span className="text-[#e6f1f5]/90">- Ar {remise.toFixed(2)}</span>
-              </div>
-            )}
-            <div className="flex justify-between text-lg font-bold mt-2 pt-2 border-t border-[#1f2a30]">
-              <span className="text-neon-green">Total:</span>
-              <span className="text-neon-green">Ar {total.toFixed(2)}</span>
-            </div>
-          </div>
-        )}
-
-        {/* Action Buttons */}
-        <div className="flex gap-2 sm:gap-3 pt-2">
-          <button onClick={handleSaveChanges} className="flex-1 py-3 rounded-xl bg-gradient-to-r from-neon-pink to-neon-purple text-[#e6f1f5] font-medium text-sm hover:opacity-90 transition-opacity cursor-pointer neon-glow-pink">
-            Save Changes
-          </button>
-          <button onClick={handleReprint} className="flex-1 py-3 rounded-xl bg-[#162126] border border-[#1f2a30] text-[#e6f1f5]/80 text-sm hover:bg-[#1f2a30] transition-colors cursor-pointer">
-            Reprint
-          </button>
-          {order.status === 'confirmed' && (
-            <button onClick={handleCancelOrder} className="flex-1 py-3 rounded-xl bg-red-500/20 border border-red-500/40 text-red-400 text-sm hover:bg-red-500/30 transition-colors cursor-pointer">
-              Cancel Order
-            </button>
-          )}
+          ))}
         </div>
-
-        {/* Back Button */}
-        <button onClick={() => router.push('/?page=report')} className="w-full py-3 rounded-xl bg-[#162126] border border-[#1f2a30] text-[#e6f1f5]/80 text-sm hover:bg-[#1f2a30] transition-colors cursor-pointer">
-          ← Back
+        <button
+          type="button"
+          onClick={addItem}
+          className="w-full mt-3 py-3 rounded-xl bg-[#162126] border border-[#1f2a30] text-[#e6f1f5]/80 text-sm hover:bg-[#1f2a30] transition-colors cursor-pointer"
+        >
+          + Add Item
         </button>
+      </div>
+
+      {/* Costs */}
+      <div className="glass p-4 rounded-2xl mb-4 space-y-3">
+        <div>
+          <label className="text-xs text-[#8fa3ad]/95 mb-1 block">Delivery Cost</label>
+          <input type="number" step="0.01" min={0} value={deliveryCost} onChange={(e) => setDeliveryCost(parseFloat(e.target.value) || 0)} placeholder="0" className="no-spinners w-full py-3 px-4" />
+        </div>
+        <div>
+          <label className="text-xs text-[#8fa3ad]/95 mb-1 block">Remise/Discount</label>
+          <input type="number" step="0.01" min={0} value={remise} onChange={(e) => setRemise(parseFloat(e.target.value) || 0)} placeholder="0" className="no-spinners w-full py-3 px-4" />
+        </div>
+        <div className="flex justify-between text-sm">
+          <span className="text-[#e6f1f5]/90">Subtotal</span>
+          <span className="text-[#e6f1f5]/90">Ar {subtotal.toFixed(2)}</span>
+        </div>
+        <div className="flex justify-between text-lg font-bold">
+          <span className="text-neon-green">Total</span>
+          <span className="text-neon-green">Ar {total.toFixed(2)}</span>
+        </div>
+      </div>
+
+      {/* Action Buttons */}
+      <div className="flex gap-2">
+        <button onClick={handleSaveChanges} className="flex-1 py-3 rounded-xl bg-gradient-to-r from-neon-pink to-neon-purple text-[#e6f1f5] font-medium text-sm hover:opacity-90 transition-opacity cursor-pointer neon-glow-pink">
+          Save Changes
+        </button>
+        <button onClick={handleReprint} className="flex-1 py-3 rounded-xl bg-[#162126] border border-[#1f2a30] text-[#e6f1f5]/80 text-sm hover:bg-[#1f2a30] transition-colors cursor-pointer">
+          Reprint
+        </button>
+        {order.status === 'confirmed' && (
+          <button onClick={handleCancelOrder} className="flex-1 py-3 rounded-xl bg-red-500/20 border border-red-500/40 text-red-400 text-sm hover:bg-red-500/30 transition-colors cursor-pointer">
+            Cancel Order
+          </button>
+        )}
       </div>
     </div>
   );
