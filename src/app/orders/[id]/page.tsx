@@ -1,8 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import {
+  autoConnect,
+  connectPrinter,
+  printReceipt as serialPrint,
+  onStatusChange,
+  type PrinterStatus,
+  type ReceiptLine,
+} from "@/lib/printer";
 
 interface OrderItem {
   id: string;
@@ -28,33 +35,40 @@ interface Order {
 }
 
 export default function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const router = useRouter();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set());
   const [orderId, setOrderId] = useState<string>("");
+  const [printerStatus, setPrinterStatus] = useState<PrinterStatus>("disconnected");
+
+  // Editable state
+  const [customer, setCustomer] = useState("");
+  const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
+  const [orderDate, setOrderDate] = useState("");
+  const [deliveryCost, setDeliveryCost] = useState(0);
+  const [remise, setRemise] = useState(0);
+  const [items, setItems] = useState<Array<{ id: string; productName: string; quantity: number; price: number; total: number }>>([]);
 
   useEffect(() => {
     async function init() {
       const resolvedParams = await params;
-      console.log('Order ID received:', resolvedParams.id);
       setOrderId(resolvedParams.id);
       loadOrder(resolvedParams.id);
     }
     init();
+    const unsubscribe = onStatusChange(setPrinterStatus);
+    autoConnect();
+    return () => unsubscribe();
   }, [params]);
 
   async function loadOrder(id: string) {
     const supabase = createClient();
-    console.log('Fetching order with id:', id);
     const { data, error } = await supabase
       .from("orders")
       .select("*, order_items(*)")
       .eq("id", id)
       .maybeSingle();
-
-    console.log('Order data:', data);
-    console.log('Order error:', error);
 
     if (error) {
       console.error("Error loading order:", error);
@@ -62,98 +76,169 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
       return;
     }
 
-    setOrder(data as Order);
+    if (data) {
+      setOrder(data as Order);
+      setCustomer(data.customer);
+      setPhone(data.phone || "");
+      setAddress(data.address || "");
+      setOrderDate(data.order_date);
+      setDeliveryCost(data.delivery_cost);
+      setRemise(data.remise);
+      setItems(data.order_items.map((item: OrderItem) => ({
+        id: item.id,
+        productName: item.product_name,
+        quantity: item.quantity,
+        price: item.price,
+        total: item.total,
+      })));
+    }
     setLoading(false);
   }
 
-  async function updateItemQuantity(itemId: string, newQty: number) {
-    if (newQty < 1) return;
-
-    const supabase = createClient();
-    const item = order?.order_items.find(i => i.id === itemId);
-    if (!item) return;
-
-    const newTotal = newQty * item.price;
-    const { error: itemError } = await supabase
-      .from("order_items")
-      .update({ quantity: newQty, total: newTotal })
-      .eq("id", itemId);
-
-    if (itemError) {
-      console.error("Error updating item:", itemError);
-      return;
+  function updateItem(index: number, field: 'quantity' | 'price' | 'productName', value: string | number) {
+    const newItems = [...items];
+    if (field === 'quantity' || field === 'price') {
+      const numValue = parseFloat(value as string) || 0;
+      (newItems[index] as any)[field] = numValue;
+      newItems[index].total = newItems[index].quantity * newItems[index].price;
+    } else {
+      (newItems[index] as any)[field] = value;
     }
+    setItems(newItems);
+  }
 
-    // Recalculate order totals
-    const newSubtotal = order!.order_items.reduce((sum, i) => {
-      if (i.id === itemId) return sum + newTotal;
-      return sum + i.total;
-    }, 0);
-    const newOrderTotal = Math.max(0, newSubtotal + order!.delivery_cost - order!.remise);
+  function removeItem(index: number) {
+    setItems(items.filter((_, i) => i !== index));
+  }
 
+  function handleCancelSelected() {
+    if (selectedItemIds.size === 0) return;
+    if (!confirm(`Cancel ${selectedItemIds.size} selected items?`)) return;
+    setItems(items.filter(item => !selectedItemIds.has(item.id)));
+    setSelectedItemIds(new Set());
+  }
+
+  async function handleSaveChanges() {
+    const supabase = createClient();
+    const subtotal = items.reduce((sum, i) => sum + i.total, 0);
+    const total = Math.max(0, subtotal + deliveryCost - remise);
+
+    // Update order
     const { error: orderError } = await supabase
       .from("orders")
-      .update({ subtotal: newSubtotal, total: newOrderTotal })
+      .update({
+        customer,
+        phone,
+        address,
+        order_date: orderDate,
+        subtotal,
+        delivery_cost: deliveryCost,
+        remise,
+        total,
+      })
       .eq("id", orderId);
 
     if (orderError) {
       console.error("Error updating order:", orderError);
+      alert("Failed to save order");
       return;
     }
 
-    await loadOrder(orderId);
-  }
+    // Update existing items and delete removed ones
+    const existingItemIds = items.map(i => i.id);
+    const { data: currentItems } = await supabase.from("order_items").select("id").eq("order_id", orderId);
+    const currentItemIds = currentItems?.map((i: any) => i.id) || [];
+    const toDelete = currentItemIds.filter((id: string) => !existingItemIds.includes(id));
 
-  async function cancelItem(itemId: string, itemName: string) {
-    if (!confirm(`Cancel ${itemName}?`)) return;
-
-    const supabase = createClient();
-    const { error } = await supabase.from("order_items").delete().eq("id", itemId);
-
-    if (error) {
-      console.error("Error cancelling item:", error);
-      return;
+    if (toDelete.length > 0) {
+      await supabase.from("order_items").delete().in("id", toDelete);
     }
 
-    // Recalculate order totals
-    const newSubtotal = order!.order_items.filter(i => i.id !== itemId).reduce((sum, i) => sum + i.total, 0);
-    const newOrderTotal = Math.max(0, newSubtotal + order!.delivery_cost - order!.remise);
-
-    await supabase
-      .from("orders")
-      .update({ subtotal: newSubtotal, total: newOrderTotal })
-      .eq("id", orderId);
-
-    await loadOrder(orderId);
-  }
-
-  async function cancelSelectedItems() {
-    if (selectedItemIds.size === 0) return;
-    if (!confirm(`Cancel ${selectedItemIds.size} selected items?`)) return;
-
-    const supabase = createClient();
-    const { error } = await supabase.from("order_items").delete().in("id", Array.from(selectedItemIds));
-
-    if (error) {
-      console.error("Error cancelling items:", error);
-      return;
+    // Update each item
+    for (const item of items) {
+      if (item.id) {
+        await supabase
+          .from("order_items")
+          .update({
+            product_name: item.productName,
+            quantity: item.quantity,
+            price: item.price,
+            total: item.total,
+          })
+          .eq("id", item.id);
+      }
     }
 
-    // Recalculate order totals
-    const newSubtotal = order!.order_items.filter(i => !selectedItemIds.has(i.id)).reduce((sum, i) => sum + i.total, 0);
-    const newOrderTotal = Math.max(0, newSubtotal + order!.delivery_cost - order!.remise);
-
-    await supabase
-      .from("orders")
-      .update({ subtotal: newSubtotal, total: newOrderTotal })
-      .eq("id", orderId);
-
-    setSelectedItemIds(new Set());
-    await loadOrder(orderId);
+    alert("Changes saved successfully");
+    loadOrder(orderId);
   }
 
-  async function cancelEntireOrder() {
-    if (!confirm(`Cancel entire order #${order?.id.slice(0, 8)}...?`)) return;
+  function buildReceiptLines(): ReceiptLine[] {
+    const money = (value: number) => `${value.toFixed(2)} Ar`;
+    const lines: ReceiptLine[] = [
+      { type: 'spacer' },
+      { text: 'MBALA&ITSAKA', align: 'center', bold: true, doubleWidth: true, doubleHeight: true },
+      { type: 'spacer' },
+      { text: 'Nif  : 5019196096', align: 'center' },
+      { text: 'Stat : 47912 11 2025 0 03311', align: 'center' },
+      { type: 'spacer' },
+      { type: 'divider' },
+      { text: 'Date:'.padEnd(14) + orderDate, align: 'left' },
+      { text: 'Customer:'.padEnd(14) + customer, align: 'left' },
+      { text: 'Phone:'.padEnd(14) + (phone || ''), align: 'left' },
+      { text: 'Address:'.padEnd(14) + (address || ''), align: 'left' },
+      { type: 'divider' },
+      { text: 'Receipt: ' + orderId, align: 'left' },
+      { type: 'divider' },
+      { type: 'spacer' },
+    ];
+    items.forEach(item => {
+      lines.push({ text: item.productName, align: 'left', bold: true });
+      lines.push({ type: 'columns', left: `  x${item.quantity} @ ${money(item.price)}`, right: money(item.quantity * item.price) });
+      lines.push({ type: 'spacer' });
+    });
+    lines.push({ type: 'divider' });
+    lines.push({ type: 'columns', left: 'Subtotal', right: money(subtotal) });
+    if (deliveryCost > 0) {
+      lines.push({ type: 'columns', left: 'Livraison', right: money(deliveryCost) });
+    }
+    if (remise > 0) {
+      lines.push({ type: 'columns', left: 'Remise', right: `- ${money(remise)}` });
+    }
+    lines.push({ type: 'divider' });
+    lines.push({ type: 'columns', left: 'TOTAL', right: money(total), bold: true });
+    lines.push({ type: 'divider' });
+    lines.push({ type: 'spacer' });
+    lines.push({ text: 'Misaotra nanjifa !', align: 'center', bold: true });
+    lines.push({ type: 'spacer' });
+    lines.push({ type: 'spacer' });
+    return lines;
+  }
+
+  async function handleReprint() {
+    const serialAvailable = typeof navigator !== 'undefined' && !!(navigator as any).serial;
+    if (!serialAvailable) {
+      alert('Web Serial is only available in Chrome on Android.');
+      return;
+    }
+    try {
+      await serialPrint(buildReceiptLines(), { paperWidth: 46, cutAfter: true });
+    } catch (error) {
+      console.error('Serial print error:', error);
+      alert('Could not print. Tap Connect Printer first, then try again.');
+    }
+  }
+
+  async function handleConnectPrinter() {
+    try {
+      await connectPrinter();
+    } catch (error: any) {
+      alert(error.message || 'Could not connect to printer. Use Chrome on Android after pairing the printer in Android Bluetooth settings.');
+    }
+  }
+
+  async function handleCancelOrder() {
+    if (!confirm(`Cancel entire order #${orderId.slice(0, 8)}...?`)) return;
 
     const supabase = createClient();
     const { error } = await supabase.from("orders").update({ status: "cancelled" }).eq("id", orderId);
@@ -163,8 +248,11 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
       return;
     }
 
-    await loadOrder(orderId);
+    loadOrder(orderId);
   }
+
+  const subtotal = items.reduce((sum, i) => sum + i.total, 0);
+  const total = Math.max(0, subtotal + deliveryCost - remise);
 
   if (loading) {
     return (
@@ -183,148 +271,193 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   }
 
   return (
-    <div className="min-h-screen p-4" style={{ background: '#0d1518' }}>
+    <div className="min-h-screen flex flex-col p-3 sm:p-4 pb-8" style={{ background: '#0d1518' }}>
       {/* Header */}
-      <div className="flex items-center gap-3 mb-4">
-        <button
-          onClick={() => window.history.back()}
-          className="p-2 rounded-xl bg-[#162126] border border-[#1f2a30] text-[#8fa3ad] hover:text-[#e6f1f5] transition-colors cursor-pointer"
-          title="Back to Report"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-        </button>
+      <div className="flex items-start justify-between gap-3 mb-4">
         <div>
-          <h1 className="text-xl font-bold text-[#e6f1f5]">Order Details</h1>
-          <div className={`text-xs px-2 py-0.5 rounded-full inline-block capitalize ${
+          <h1 className="text-xl sm:text-2xl font-bold gradient-text">Edit Order</h1>
+          <p className="text-[#8fa3ad]/95 text-sm mt-1">ORD#{orderId.slice(0, 8)}</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className={`text-xs px-2 py-0.5 rounded-full capitalize ${
             order.status === 'confirmed' ? 'bg-green-500/20 text-green-400' :
             order.status === 'cancelled' ? 'bg-red-500/20 text-red-400' :
             'bg-[#162126] text-[#8fa3ad]'
           }`}>
             {order.status}
           </div>
+          <button
+            type="button"
+            onClick={handleConnectPrinter}
+            className={`px-3 py-2 rounded-xl border text-xs font-medium transition-colors cursor-pointer shrink-0 ${
+              printerStatus === "connected"
+                ? "bg-neon-green/10 border-neon-green/40 text-neon-green"
+                : printerStatus === "reconnecting"
+                  ? "bg-neon-purple/10 border-neon-purple/40 text-neon-purple"
+                  : "bg-[#162126] border-[#1f2a30] text-[#8fa3ad]"
+            }`}
+          >
+            {printerStatus === "connected" ? "Printer ✓" : printerStatus === "reconnecting" ? "Connecting..." : "Connect Printer"}
+          </button>
         </div>
       </div>
 
-      {/* Order Info */}
-      <div className="glass p-4 rounded-2xl mb-4 space-y-2">
-        <div className="text-xs text-[#8fa3ad]/60">{order.id}</div>
-        <div className="text-sm font-semibold text-[#e6f1f5]">{order.customer}</div>
-        {order.phone && <div className="text-xs text-[#8fa3ad]/80">{order.phone}</div>}
-        {order.address && <div className="text-xs text-[#8fa3ad]/80">{order.address}</div>}
-        <div className="text-xs text-[#8fa3ad]/60">{order.order_date}</div>
-      </div>
+      <div className="glass p-4 sm:p-6 lg:p-8 neon-glow-pink bg-[#0a0a1a] space-y-3 sm:space-y-4">
+        <div>
+          <label className="text-xs text-[#8fa3ad]/95 mb-1 block">Customer Name</label>
+          <input type="text" value={customer} onChange={(e) => setCustomer(e.target.value)} className="w-full py-3 px-4" />
+        </div>
 
-      {/* Items Table */}
-      <div className="glass p-4 rounded-2xl mb-4">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={order.order_items.length > 0 && selectedItemIds.size === order.order_items.length}
-              onChange={(e) => {
-                if (e.target.checked) {
-                  setSelectedItemIds(new Set(order.order_items.map(i => i.id)));
-                } else {
-                  setSelectedItemIds(new Set());
-                }
-              }}
-              className="w-3 h-3 rounded border border-white/50 bg-transparent cursor-pointer"
-            />
-            <span className="text-sm text-[#e6f1f5]">Items</span>
+        <div>
+          <label className="text-xs text-[#8fa3ad]/95 mb-1 block">Phone Number (Optional)</label>
+          <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full py-3 px-4" />
+        </div>
+
+        <div>
+          <label className="text-xs text-[#8fa3ad]/95 mb-1 block">Address (Optional)</label>
+          <input type="text" value={address} onChange={(e) => setAddress(e.target.value)} className="w-full py-3 px-4" />
+        </div>
+
+        <div>
+          <label className="text-xs text-[#8fa3ad]/95 mb-1 block">Date de livraison</label>
+          <input
+            type="date"
+            value={orderDate}
+            onChange={(e) => setOrderDate(e.target.value)}
+            className="w-full py-3 px-4"
+          />
+        </div>
+
+        {/* Items */}
+        <div className="glass p-4 bg-[#0d1518]">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={items.length > 0 && selectedItemIds.size === items.length}
+                onChange={(e) => {
+                  if (e.target.checked) {
+                    setSelectedItemIds(new Set(items.map(i => i.id)));
+                  } else {
+                    setSelectedItemIds(new Set());
+                  }
+                }}
+                className="w-3 h-3 rounded border border-white/50 bg-transparent cursor-pointer"
+              />
+              <label className="text-xs text-[#8fa3ad]/95">Items</label>
+            </div>
+            {selectedItemIds.size > 0 && (
+              <button
+                onClick={handleCancelSelected}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium bg-red-500/20 border border-red-500/40 text-red-400 hover:bg-red-500/30 transition-colors cursor-pointer"
+              >
+                Cancel Selected ({selectedItemIds.size})
+              </button>
+            )}
           </div>
-          {selectedItemIds.size > 0 && (
-            <button
-              onClick={cancelSelectedItems}
-              className="px-3 py-1.5 rounded-lg text-xs font-medium bg-red-500/20 border border-red-500/40 text-red-400 hover:bg-red-500/30 transition-colors cursor-pointer"
-            >
-              Cancel Selected ({selectedItemIds.size})
+
+          <div className="space-y-2">
+            {items.map((item, index) => (
+              <div key={item.id} className="flex items-center gap-2 p-3 rounded-xl bg-[#0d1518] border border-[#1f2a30]">
+                <input
+                  type="checkbox"
+                  checked={selectedItemIds.has(item.id)}
+                  onChange={(e) => {
+                    const newSet = new Set(selectedItemIds);
+                    if (e.target.checked) {
+                      newSet.add(item.id);
+                    } else {
+                      newSet.delete(item.id);
+                    }
+                    setSelectedItemIds(newSet);
+                  }}
+                  className="w-3 h-3 rounded border border-white/50 bg-transparent cursor-pointer shrink-0"
+                />
+                <input
+                  type="text"
+                  value={item.productName}
+                  onChange={(e) => updateItem(index, 'productName', e.target.value)}
+                  className="flex-1 min-w-0 py-2 px-3 text-sm"
+                />
+                <input
+                  type="number"
+                  min={1}
+                  value={item.quantity}
+                  onChange={(e) => updateItem(index, 'quantity', e.target.value)}
+                  className="no-spinners w-16 py-2 px-3 text-sm"
+                />
+                <input
+                  type="number"
+                  step="0.01"
+                  min={0}
+                  value={item.price}
+                  onChange={(e) => updateItem(index, 'price', e.target.value)}
+                  className="no-spinners w-20 py-2 px-3 text-sm"
+                />
+                <div className="text-sm text-neon-green w-20 text-right">Ar {item.total.toFixed(2)}</div>
+                <button type="button" onClick={() => removeItem(index)} className="text-red-400 hover:text-red-300 cursor-pointer text-lg p-1">✕</button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <div>
+            <label className="text-xs text-[#8fa3ad]/95 mb-1 block">Delivery Cost (Optional)</label>
+            <input type="number" step="0.01" min={0} value={deliveryCost} onChange={(e) => setDeliveryCost(parseFloat(e.target.value) || 0)} placeholder="0" className="no-spinners w-full py-3 px-4" />
+          </div>
+          <div>
+            <label className="text-xs text-[#8fa3ad]/95 mb-1 block">Remise/Discount (Optional)</label>
+            <input type="number" step="0.01" min={0} value={remise} onChange={(e) => setRemise(parseFloat(e.target.value) || 0)} placeholder="0" className="no-spinners w-full py-3 px-4" />
+          </div>
+        </div>
+
+        {/* Summary */}
+        {items.length > 0 && (
+          <div className="glass p-4 bg-[#0d1518]">
+            <div className="flex justify-between text-sm mb-1">
+              <span className="text-[#e6f1f5]/90">Subtotal:</span>
+              <span className="text-[#e6f1f5]/90">Ar {subtotal.toFixed(2)}</span>
+            </div>
+            {deliveryCost > 0 && (
+              <div className="flex justify-between text-sm mb-1">
+                <span className="text-[#e6f1f5]/90">Delivery:</span>
+                <span className="text-[#e6f1f5]/90">Ar {deliveryCost.toFixed(2)}</span>
+              </div>
+            )}
+            {remise > 0 && (
+              <div className="flex justify-between text-sm mb-1">
+                <span className="text-[#e6f1f5]/90">Remise:</span>
+                <span className="text-[#e6f1f5]/90">- Ar {remise.toFixed(2)}</span>
+              </div>
+            )}
+            <div className="flex justify-between text-lg font-bold mt-2 pt-2 border-t border-[#1f2a30]">
+              <span className="text-neon-green">Total:</span>
+              <span className="text-neon-green">Ar {total.toFixed(2)}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Action Buttons */}
+        <div className="flex gap-2 sm:gap-3 pt-2">
+          <button onClick={handleSaveChanges} className="flex-1 py-3 rounded-xl bg-gradient-to-r from-neon-pink to-neon-purple text-[#e6f1f5] font-medium text-sm hover:opacity-90 transition-opacity cursor-pointer neon-glow-pink">
+            Save Changes
+          </button>
+          <button onClick={handleReprint} className="flex-1 py-3 rounded-xl bg-[#162126] border border-[#1f2a30] text-[#e6f1f5]/80 text-sm hover:bg-[#1f2a30] transition-colors cursor-pointer">
+            Reprint
+          </button>
+          {order.status === 'confirmed' && (
+            <button onClick={handleCancelOrder} className="flex-1 py-3 rounded-xl bg-red-500/20 border border-red-500/40 text-red-400 text-sm hover:bg-red-500/30 transition-colors cursor-pointer">
+              Cancel Order
             </button>
           )}
         </div>
 
-        <div className="space-y-2">
-          {order.order_items.map((item) => (
-            <div key={item.id} className="flex items-center gap-2 p-2 rounded-lg bg-[#162126]/50 border border-[#1f2a30]">
-              <input
-                type="checkbox"
-                checked={selectedItemIds.has(item.id)}
-                onChange={(e) => {
-                  const newSet = new Set(selectedItemIds);
-                  if (e.target.checked) {
-                    newSet.add(item.id);
-                  } else {
-                    newSet.delete(item.id);
-                  }
-                  setSelectedItemIds(newSet);
-                }}
-                className="w-3 h-3 rounded border border-white/50 bg-transparent cursor-pointer shrink-0"
-              />
-              <div className="flex-1 min-w-0">
-                <div className="text-sm text-[#e6f1f5] truncate">{item.product_name}</div>
-                <div className="text-xs text-[#8fa3ad]/60">Ar {item.price.toFixed(2)} each</div>
-              </div>
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => updateItemQuantity(item.id, item.quantity - 1)}
-                  disabled={item.quantity <= 1}
-                  className="w-6 h-6 rounded bg-[#1f2a30] text-[#8fa3ad] hover:text-[#e6f1f5] disabled:opacity-30 cursor-pointer text-sm"
-                >
-                  -
-                </button>
-                <span className="w-8 text-center text-sm text-[#e6f1f5]">{item.quantity}</span>
-                <button
-                  onClick={() => updateItemQuantity(item.id, item.quantity + 1)}
-                  className="w-6 h-6 rounded bg-[#1f2a30] text-[#8fa3ad] hover:text-[#e6f1f5] cursor-pointer text-sm"
-                >
-                  +
-                </button>
-              </div>
-              <div className="text-sm text-[#e6f1f5] w-20 text-right">Ar {item.total.toFixed(2)}</div>
-              {order.status === 'confirmed' && (
-                <button
-                  onClick={() => cancelItem(item.id, item.product_name)}
-                  className="p-1 rounded bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 transition-colors cursor-pointer"
-                  title="Cancel item"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Totals */}
-      <div className="glass p-4 rounded-2xl mb-4 space-y-2">
-        {order.delivery_cost > 0 && (
-          <div className="flex justify-between text-xs text-[#8fa3ad]/70">
-            <span>Delivery</span><span>Ar {order.delivery_cost.toFixed(2)}</span>
-          </div>
-        )}
-        {order.remise > 0 && (
-          <div className="flex justify-between text-xs text-[#8fa3ad]/70">
-            <span>Remise</span><span>- Ar {order.remise.toFixed(2)}</span>
-          </div>
-        )}
-        <div className="flex justify-between text-sm font-bold">
-          <span className="text-neon-green">TOTAL</span>
-          <span className="text-neon-green">Ar {order.total.toFixed(2)}</span>
-        </div>
-      </div>
-
-      {/* Cancel Entire Order */}
-      {order.status === 'confirmed' && (
-        <button
-          onClick={cancelEntireOrder}
-          className="w-full py-3 rounded-xl bg-red-500/20 border border-red-500/40 text-red-400 hover:bg-red-500/30 transition-colors cursor-pointer font-medium"
-        >
-          Cancel Entire Order
+        {/* Back Button */}
+        <button onClick={() => window.history.back()} className="w-full py-3 rounded-xl bg-[#162126] border border-[#1f2a30] text-[#e6f1f5]/80 text-sm hover:bg-[#1f2a30] transition-colors cursor-pointer">
+          ← Back
         </button>
-      )}
+      </div>
     </div>
   );
 }
