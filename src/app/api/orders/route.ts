@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
       total: order.total,
       status: "confirmed",
       order_date: order.date,
-    }).select("*").single();
+    }).select("id, receipt_number, customer, total").single();
 
     if (orderError) return NextResponse.json({ error: orderError.message }, { status: 500 });
 

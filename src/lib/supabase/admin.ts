@@ -13,5 +13,9 @@ export function createAdminClient() {
       persistSession: false,
       autoRefreshToken: false,
     },
+    db: { schema: 'public' },
+    global: {
+      headers: { 'Accept-Profile': 'public', 'Content-Profile': 'public' }
+    }
   });
 }
