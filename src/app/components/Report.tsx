@@ -2,13 +2,14 @@
 
 import { Order, User } from "../types";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Calendar from "./Calendar";
 
 export default function Report({ orders, currentUser, onRefresh }: { orders: Order[]; currentUser: User; onRefresh?: () => void }) {
+  const router = useRouter();
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
   const [showAll, setShowAll] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [expandedOrders, setExpandedOrders] = useState<Record<string, boolean>>({});
   const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set());
 
   async function handleRefresh() {
@@ -25,29 +26,6 @@ export default function Report({ orders, currentUser, onRefresh }: { orders: Ord
       body: JSON.stringify({ id: orderId, status: "cancelled" }),
     });
     if (response.ok) {
-      await onRefresh?.();
-    }
-  }
-
-  async function handleCancelItem(itemId: string, orderId: string) {
-    const response = await fetch("/api/order-items", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: itemId }),
-    });
-    if (response.ok) {
-      // Recalculate and update order totals
-      const order = orders.find(o => o.id === orderId);
-      if (order) {
-        const remainingItems = order.items.filter(i => i.productId !== itemId);
-        const newSubtotal = remainingItems.reduce((sum, i) => sum + i.total, 0);
-        const newTotal = Math.max(0, newSubtotal + order.deliveryCost - order.remise);
-        await fetch("/api/orders", {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: orderId, subtotal: newSubtotal, total: newTotal }),
-        });
-      }
       await onRefresh?.();
     }
   }
@@ -185,7 +163,7 @@ export default function Report({ orders, currentUser, onRefresh }: { orders: Ord
                 />
                 <button
                   type="button"
-                  onClick={() => setExpandedOrders(prev => ({ ...prev, [order.id]: !prev[order.id] }))}
+                  onClick={() => router.push(`/orders/${order.id}`)}
                   className="flex-1 flex items-start justify-between gap-2 text-left cursor-pointer"
                 >
                   <div className="min-w-0">
@@ -219,32 +197,6 @@ export default function Report({ orders, currentUser, onRefresh }: { orders: Ord
                   </button>
                 )}
               </div>
-
-              {/* Items */}
-              {expandedOrders[order.id] && (
-                <div className="space-y-1 border-t border-[#1f2a30] pt-2">
-                  {order.address && <div className="text-xs text-[#8fa3ad]/80 pb-1">{order.address}</div>}
-                  {order.items.map((item, i) => (
-                    <div key={i} className="flex justify-between items-center text-sm">
-                      <span className="text-[#e6f1f5]/80 truncate flex-1">{item.productName} <span className="text-[#8fa3ad]/60">×{item.quantity}</span></span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[#e6f1f5]/80 shrink-0">Ar {item.total.toFixed(2)}</span>
-                        {order.status === 'confirmed' && (
-                          <button
-                            onClick={() => handleCancelItem(item.productId || item.productName, order.id)}
-                            className="p-1 rounded bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 transition-colors cursor-pointer"
-                            title="Cancel item"
-                          >
-                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
 
               {/* Totals */}
               <div className="border-t border-[#1f2a30] pt-2 space-y-1">
