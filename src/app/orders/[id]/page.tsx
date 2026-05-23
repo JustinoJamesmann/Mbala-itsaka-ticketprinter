@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
   autoConnect,
@@ -35,6 +36,7 @@ interface Order {
 }
 
 export default function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const router = useRouter();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set());
@@ -358,7 +360,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
 
           <div className="space-y-2">
             {items.map((item, index) => (
-              <div key={item.id} className="flex items-center gap-2 p-3 rounded-xl bg-[#0d1518] border border-[#1f2a30]">
+              <div key={item.id} className="flex items-center gap-2 p-3 rounded-xl bg-[#0d1518] border border-[#1f2a30] w-full overflow-hidden">
                 <input
                   type="checkbox"
                   checked={selectedItemIds.has(item.id)}
@@ -384,7 +386,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                   min={1}
                   value={item.quantity}
                   onChange={(e) => updateItem(index, 'quantity', e.target.value)}
-                  className="no-spinners w-16 py-2 px-3 text-sm"
+                  className="no-spinners w-16 py-2 px-3 text-sm shrink-0"
                 />
                 <input
                   type="number"
@@ -392,10 +394,10 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                   min={0}
                   value={item.price}
                   onChange={(e) => updateItem(index, 'price', e.target.value)}
-                  className="no-spinners w-20 py-2 px-3 text-sm"
+                  className="no-spinners w-20 py-2 px-3 text-sm shrink-0"
                 />
-                <div className="text-sm text-neon-green w-20 text-right">Ar {item.total.toFixed(2)}</div>
-                <button type="button" onClick={() => removeItem(index)} className="text-red-400 hover:text-red-300 cursor-pointer text-lg p-1">✕</button>
+                <div className="text-sm text-neon-green w-20 text-right shrink-0">Ar {item.total.toFixed(2)}</div>
+                <button type="button" onClick={() => removeItem(index)} className="text-red-400 hover:text-red-300 cursor-pointer text-lg p-1 shrink-0">✕</button>
               </div>
             ))}
           </div>
@@ -454,7 +456,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
         </div>
 
         {/* Back Button */}
-        <button onClick={() => window.history.back()} className="w-full py-3 rounded-xl bg-[#162126] border border-[#1f2a30] text-[#e6f1f5]/80 text-sm hover:bg-[#1f2a30] transition-colors cursor-pointer">
+        <button onClick={() => router.push('/?page=report')} className="w-full py-3 rounded-xl bg-[#162126] border border-[#1f2a30] text-[#e6f1f5]/80 text-sm hover:bg-[#1f2a30] transition-colors cursor-pointer">
           ← Back
         </button>
       </div>
