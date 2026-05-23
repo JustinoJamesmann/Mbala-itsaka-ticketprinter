@@ -35,12 +35,12 @@ ALTER TABLE orders ADD COLUMN IF NOT EXISTS receipt_number TEXT;
 CREATE OR REPLACE FUNCTION insert_order_with_receipt(
   p_receipt_number TEXT,
   p_customer TEXT,
+  p_subtotal DECIMAL,
+  p_total DECIMAL,
   p_phone TEXT DEFAULT NULL,
   p_address TEXT DEFAULT NULL,
-  p_subtotal DECIMAL,
   p_delivery_cost DECIMAL DEFAULT 0,
   p_remise DECIMAL DEFAULT 0,
-  p_total DECIMAL,
   p_status TEXT DEFAULT 'confirmed',
   p_order_date DATE DEFAULT CURRENT_DATE
 )
@@ -51,23 +51,23 @@ BEGIN
   INSERT INTO orders (
     receipt_number,
     customer,
+    subtotal,
+    total,
     phone,
     address,
-    subtotal,
     delivery_cost,
     remise,
-    total,
     status,
     order_date
   ) VALUES (
     p_receipt_number,
     p_customer,
+    p_subtotal,
+    p_total,
     p_phone,
     p_address,
-    p_subtotal,
     p_delivery_cost,
     p_remise,
-    p_total,
     p_status,
     p_order_date
   )

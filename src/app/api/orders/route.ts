@@ -30,12 +30,12 @@ export async function POST(request: NextRequest) {
     const { data: createdOrder, error: orderError } = await supabase.rpc('insert_order_with_receipt', {
       p_receipt_number: receiptNumber,
       p_customer: order.customer,
+      p_subtotal: order.subtotal,
+      p_total: order.total,
       p_phone: order.phone || null,
       p_address: order.address || null,
-      p_subtotal: order.subtotal,
       p_delivery_cost: order.deliveryCost || 0,
       p_remise: order.remise || 0,
-      p_total: order.total,
       p_status: "confirmed",
       p_order_date: order.date,
     });
