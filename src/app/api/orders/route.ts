@@ -99,11 +99,32 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const { id } = await request.json();
+    const body = await request.json();
     const supabase = createAdminClient();
-    const { error } = await supabase.from("orders").delete().eq("id", id);
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json({ ok: true });
+
+    // Handle bulk deletion
+    if (body.ids && Array.isArray(body.ids)) {
+      const { ids } = body;
+      // Delete order_items first (cascade should handle this but be explicit)
+      await supabase.from("order_items").delete().in("order_id", ids);
+      // Delete orders
+      const { error } = await supabase.from("orders").delete().in("id", ids);
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ ok: true });
+    }
+
+    // Handle single deletion
+    if (body.id) {
+      const { id } = body;
+      // Delete order_items first (cascade should handle this but be explicit)
+      await supabase.from("order_items").delete().eq("order_id", id);
+      // Delete order
+      const { error } = await supabase.from("orders").delete().eq("id", id);
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ ok: true });
+    }
+
+    return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   } catch (error) {
     console.error("Orders DELETE error:", error);
     return NextResponse.json({ error: "Failed to delete order" }, { status: 500 });

@@ -30,12 +30,40 @@ export default function Report({ orders, currentUser, onRefresh }: { orders: Ord
     }
   }
 
+  async function handleDeleteOrder(orderId: string) {
+    if (!confirm(`Delete order ORD#${orderId.slice(0, 8)}? This cannot be undone.`)) return;
+
+    const response = await fetch("/api/orders", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: orderId }),
+    });
+    if (response.ok) {
+      await onRefresh?.();
+    }
+  }
+
   async function handleCancelSelected() {
     if (selectedOrderIds.size === 0) return;
     for (const id of selectedOrderIds) {
       await handleCancelOrder(id);
     }
     setSelectedOrderIds(new Set());
+  }
+
+  async function handleDeleteSelected() {
+    if (selectedOrderIds.size === 0) return;
+    if (!confirm(`Delete ${selectedOrderIds.size} selected orders? This cannot be undone.`)) return;
+
+    const response = await fetch("/api/orders", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids: Array.from(selectedOrderIds) }),
+    });
+    if (response.ok) {
+      setSelectedOrderIds(new Set());
+      await onRefresh?.();
+    }
   }
 
   const visibleOrders = (showAll
@@ -57,12 +85,20 @@ export default function Report({ orders, currentUser, onRefresh }: { orders: Ord
         </div>
         <div className="flex items-center gap-2">
           {selectedOrderIds.size > 0 && (
-            <button
-              onClick={handleCancelSelected}
-              className="px-3 py-2 rounded-xl text-xs font-medium bg-red-500/20 border border-red-500/40 text-red-400 hover:bg-red-500/30 transition-colors cursor-pointer"
-            >
-              Cancel Selected ({selectedOrderIds.size})
-            </button>
+            <>
+              <button
+                onClick={handleCancelSelected}
+                className="px-3 py-2 rounded-xl text-xs font-medium bg-red-500/20 border border-red-500/40 text-red-400 hover:bg-red-500/30 transition-colors cursor-pointer"
+              >
+                Cancel Selected ({selectedOrderIds.size})
+              </button>
+              <button
+                onClick={handleDeleteSelected}
+                className="px-3 py-2 rounded-xl text-xs font-medium bg-red-500/20 border border-red-500/40 text-red-400 hover:bg-red-500/30 transition-colors cursor-pointer"
+              >
+                Delete Selected ({selectedOrderIds.size})
+              </button>
+            </>
           )}
           {onRefresh && (
             <button
@@ -185,17 +221,28 @@ export default function Report({ orders, currentUser, onRefresh }: { orders: Ord
                     <div className="text-sm font-bold text-neon-green">Ar {order.total.toFixed(2)}</div>
                   </div>
                 </button>
-                {order.status === 'confirmed' && (
+                <div className="flex items-center gap-1">
+                  {order.status === 'confirmed' && (
+                    <button
+                      onClick={() => handleCancelOrder(order.id)}
+                      className="p-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 transition-colors cursor-pointer shrink-0"
+                      title="Cancel order"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  )}
                   <button
-                    onClick={() => handleCancelOrder(order.id)}
+                    onClick={() => handleDeleteOrder(order.id)}
                     className="p-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 transition-colors cursor-pointer shrink-0"
-                    title="Cancel order"
+                    title="Delete order"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                     </svg>
                   </button>
-                )}
+                </div>
               </div>
 
               {/* Totals */}
