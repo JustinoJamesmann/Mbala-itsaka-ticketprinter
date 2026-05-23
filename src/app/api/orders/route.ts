@@ -26,37 +26,19 @@ export async function POST(request: NextRequest) {
     const { count } = await supabase.from("orders").select("*", { count: "exact", head: true });
     const receiptNumber = `ORD#${String((count || 0) + 1).padStart(3, "0")}`;
 
-    // Use REST API to bypass schema cache
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    const restResponse = await fetch(`${supabaseUrl}/rest/v1/orders`, {
-      method: 'POST',
-      headers: {
-        'apikey': serviceRoleKey!,
-        'Authorization': `Bearer ${serviceRoleKey}`,
-        'Content-Type': 'application/json',
-        'Prefer': 'return=representation'
-      },
-      body: JSON.stringify({
-        receipt_number: receiptNumber,
-        customer: order.customer,
-        phone: order.phone || null,
-        address: order.address || null,
-        subtotal: order.subtotal,
-        delivery_cost: order.deliveryCost || 0,
-        remise: order.remise || 0,
-        total: order.total,
-        status: "confirmed",
-        order_date: order.date,
-      })
+    // Use RPC function to bypass PostgREST schema cache
+    const { data: createdOrder, error: orderError } = await supabase.rpc('insert_order_with_receipt', {
+      p_receipt_number: receiptNumber,
+      p_customer: order.customer,
+      p_phone: order.phone || null,
+      p_address: order.address || null,
+      p_subtotal: order.subtotal,
+      p_delivery_cost: order.deliveryCost || 0,
+      p_remise: order.remise || 0,
+      p_total: order.total,
+      p_status: "confirmed",
+      p_order_date: order.date,
     });
-
-    if (!restResponse.ok) {
-      const errorText = await restResponse.text();
-      return NextResponse.json({ error: errorText }, { status: restResponse.status });
-    }
-
-    const createdOrder = (await restResponse.json())[0];
 
     const { error: itemsError } = await supabase.from("order_items").insert(order.items.map(item => ({
       order_id: createdOrder.id,

@@ -31,6 +31,50 @@ CREATE TABLE IF NOT EXISTS orders (
 -- Add receipt_number column if it doesn't exist (for existing tables)
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS receipt_number TEXT;
 
+-- Function to insert order with receipt_number (bypasses PostgREST schema cache)
+CREATE OR REPLACE FUNCTION insert_order_with_receipt(
+  p_receipt_number TEXT,
+  p_customer TEXT,
+  p_phone TEXT DEFAULT NULL,
+  p_address TEXT DEFAULT NULL,
+  p_subtotal DECIMAL,
+  p_delivery_cost DECIMAL DEFAULT 0,
+  p_remise DECIMAL DEFAULT 0,
+  p_total DECIMAL,
+  p_status TEXT DEFAULT 'confirmed',
+  p_order_date DATE DEFAULT CURRENT_DATE
+)
+RETURNS orders
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  INSERT INTO orders (
+    receipt_number,
+    customer,
+    phone,
+    address,
+    subtotal,
+    delivery_cost,
+    remise,
+    total,
+    status,
+    order_date
+  ) VALUES (
+    p_receipt_number,
+    p_customer,
+    p_phone,
+    p_address,
+    p_subtotal,
+    p_delivery_cost,
+    p_remise,
+    p_total,
+    p_status,
+    p_order_date
+  )
+  RETURNING *;
+END;
+$$;
+
 -- Order items table
 CREATE TABLE IF NOT EXISTS order_items (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
