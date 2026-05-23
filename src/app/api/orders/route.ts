@@ -26,22 +26,21 @@ export async function POST(request: NextRequest) {
     const { count } = await supabase.from("orders").select("*", { count: "exact", head: true });
     const receiptNumber = `ORD#${String((count || 0) + 1).padStart(3, "0")}`;
 
-    // Use RPC function to bypass PostgREST schema cache
-    const { data: createdOrder, error: orderError } = await supabase.rpc('insert_order_with_receipt', {
-      p_receipt_number: receiptNumber,
-      p_customer: order.customer,
-      p_subtotal: order.subtotal,
-      p_total: order.total,
-      p_phone: order.phone || null,
-      p_address: order.address || null,
-      p_delivery_cost: order.deliveryCost || 0,
-      p_remise: order.remise || 0,
-      p_status: "confirmed",
-      p_order_date: order.date,
-    });
+    const { data: createdOrder, error: orderError } = await supabase.from("orders").insert({
+      receipt_number: receiptNumber,
+      customer: order.customer,
+      phone: order.phone || null,
+      address: order.address || null,
+      subtotal: order.subtotal,
+      delivery_cost: order.deliveryCost || 0,
+      remise: order.remise || 0,
+      total: order.total,
+      status: "confirmed",
+      order_date: order.date,
+    }).select("*").single();
 
     if (orderError) {
-      console.error("RPC insert error:", orderError);
+      console.error("Order insert error:", orderError);
       return NextResponse.json({ error: orderError.message, details: orderError }, { status: 500 });
     }
 
