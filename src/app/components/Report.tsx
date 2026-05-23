@@ -92,7 +92,7 @@ export default function Report({ orders, currentUser, onRefresh }: { orders: Ord
                 setSelectedOrderIds(new Set());
               }
             }}
-            className="w-4 h-4 rounded border-[#1f2a30] bg-[#162126] text-neon-purple focus:ring-neon-purple cursor-pointer"
+            className="w-3 h-3 rounded border border-white/50 bg-transparent cursor-pointer"
           />
           <label className="text-sm text-[#e6f1f5]/80 shrink-0">Date:</label>
           <div className={showAll ? 'opacity-40 pointer-events-none' : ''}>
@@ -159,7 +159,7 @@ export default function Report({ orders, currentUser, onRefresh }: { orders: Ord
                     }
                     setSelectedOrderIds(newSet);
                   }}
-                  className="w-4 h-4 mt-1 rounded border-[#1f2a30] bg-[#162126] text-neon-purple focus:ring-neon-purple cursor-pointer shrink-0"
+                  className="w-3 h-3 mt-1 rounded border border-white/50 bg-transparent cursor-pointer shrink-0"
                 />
                 <button
                   type="button"

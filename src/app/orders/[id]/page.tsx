@@ -230,7 +230,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                   setSelectedItemIds(new Set());
                 }
               }}
-              className="w-4 h-4 rounded border-[#1f2a30] bg-[#162126] text-neon-purple focus:ring-neon-purple cursor-pointer"
+              className="w-3 h-3 rounded border border-white/50 bg-transparent cursor-pointer"
             />
             <span className="text-sm text-[#e6f1f5]">Items</span>
           </div>
@@ -259,7 +259,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                   }
                   setSelectedItemIds(newSet);
                 }}
-                className="w-4 h-4 rounded border-[#1f2a30] bg-[#162126] text-neon-purple focus:ring-neon-purple cursor-pointer shrink-0"
+                className="w-3 h-3 rounded border border-white/50 bg-transparent cursor-pointer shrink-0"
               />
               <div className="flex-1 min-w-0">
                 <div className="text-sm text-[#e6f1f5] truncate">{item.product_name}</div>
